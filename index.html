@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SukiOffice Virtual — Three.js v2.1</title>
+<title>SukiOffice Virtual — Three.js v2.2</title>
 <!--
   SUKIOFFICE VIRTUAL v2 — implementasi dari 4 gambar referensi Three.js
   Lobby (3 angle) + Co-working + CEO + Meeting & Object Sheet.
@@ -51,7 +51,7 @@
 </head>
 <body>
 <div id="panel">
-  <b>SukiOffice Virtual — v2.1</b>
+  <b>SukiOffice Virtual — v2.2</b>
   <div class="desc" id="roomDesc">Lobby — pintu kaca, meja resepsionis melengkung, logo neon SUKIOFFICE, lounge teal &amp; mustard.</div>
   <div class="desc" id="loadStatus">Memuat 3D... kalau 8 detik masih tulisan ini, berarti modul Three.js gagal dimuat.</div>
   <div class="btns">
@@ -169,6 +169,16 @@ function plant(g, x, z, s = 1) {
   cyl(g, 0.28 * s, 0.22 * s, 0.5 * s, 0x8a6b4a, x, 0.25 * s, z);
   box(g, 0.9 * s, 0.9 * s, 0.9 * s, 0x3e7d4e, x, 1.0 * s, z);
   cyl(g, 0.08 * s, 0.08 * s, 0.7 * s, 0x2f7d3e, x + 0.3 * s, 1.6 * s, z);
+}
+// FIX v2.2: fungsi ini hilang di rewrite v2, padahal Lobby memanggilnya.
+// Akibatnya script berhenti di tengah bangun Lobby, showRoom tidak pernah
+// terdefinisi, animate tidak pernah jalan, dan canvas tetap blank.
+function lightShaft(g, x, z) {
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(4, 9),
+    new THREE.MeshBasicMaterial({ color: 0xfff2cc, transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+  );
+  m.position.set(x, 4.5, z); m.rotation.z = 0.5; m.rotation.y = 0.4; g.add(m);
 }
 function pendant(g, x, y, z) {
   cyl(g, 0.02, 0.02, 1.4, C.grey, x, y + 0.7, z, { seg: 8 });
