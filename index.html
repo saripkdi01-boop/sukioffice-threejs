@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SukiOffice Virtual — Three.js v2</title>
+<title>SukiOffice Virtual — Three.js v2.1</title>
 <!--
   SUKIOFFICE VIRTUAL v2 — implementasi dari 4 gambar referensi Three.js
   Lobby (3 angle) + Co-working + CEO + Meeting & Object Sheet.
@@ -44,15 +44,16 @@
 </style>
 <script type="importmap">
 { "imports": {
-  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
 </head>
 <body>
 <div id="panel">
-  <b>SukiOffice Virtual — v2</b>
+  <b>SukiOffice Virtual — v2.1</b>
   <div class="desc" id="roomDesc">Lobby — pintu kaca, meja resepsionis melengkung, logo neon SUKIOFFICE, lounge teal &amp; mustard.</div>
+  <div class="desc" id="loadStatus">Memuat 3D... kalau 8 detik masih tulisan ini, berarti modul Three.js gagal dimuat.</div>
   <div class="btns">
     <button data-room="lobby" class="active" onclick="showRoom('lobby')">Lobby</button>
     <button data-room="coworking" onclick="showRoom('coworking')">Co-working</button>
@@ -73,12 +74,29 @@
 <div id="meta">FPS: -- • Klik objek untuk info</div>
 <div id="hint">Seret = putar • Cubit/scroll = zoom</div>
 
+<script>
+// Skrip klasik ini JALAN walau modul Three.js gagal — jadi blank tidak lagi diam.
+// Kalau setelah 8 detik tidak ada canvas, tampilkan pesan gagalnya di panel.
+window.__suki3dStarted = false;
+window.addEventListener('error', function (e) {
+  var el = document.getElementById('loadStatus');
+  if (el && e.message) el.textContent = 'Error: ' + e.message;
+}, true);
+setTimeout(function () {
+  if (!window.__suki3dStarted) {
+    var el = document.getElementById('loadStatus');
+    if (el) el.textContent = 'GAGAL: Modul Three.js tidak jalan setelah 8 detik. Coba refresh, tutup tab lain, atau ganti jaringan/WiFi, lalu screenshot pesan ini.';
+    var m = document.getElementById('meta');
+    if (m) m.textContent = 'GAGAL LOAD: modul Three.js tidak jalan.';
+  }
+}, 8000);
+</script>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+// v2.1: import yang tidak terpakai dihapus sengaja — RoundedBox, GLTFLoader,
+// DRACOLoader di v2 ikut diunduh walau tidak pernah dipanggil, dan itu menambah
+// titik gagal load. Sofa/kursi kini pakai BoxGeometry biasa (tetap terbaca).
 
 /* ---------- Scene / Camera / Renderer ---------- */
 const scene = new THREE.Scene();
@@ -86,7 +104,7 @@ scene.background = new THREE.Color(0xeef4f2);
 scene.fog = new THREE.FogExp2(0xeef4f2, 0.010);
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(7, 3.5, 9);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.shadowMap.enabled = true;
@@ -95,6 +113,8 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 document.body.appendChild(renderer.domElement);
+window.__suki3dStarted = true;
+document.getElementById('loadStatus').textContent = '3D jalan — seret layar untuk memutar ruangan.';
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 1.2, 0);
 controls.maxPolarAngle = Math.PI / 2 - 0.05;
@@ -120,7 +140,7 @@ function box(g, w, h, d, color, x, y, z, o = {}) {
   m.castShadow = true; m.receiveShadow = true; if (o.name) m.name = o.name; g.add(m); return m;
 }
 function rbox(g, w, h, d, color, x, y, z, o = {}) {
-  const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, 0.08), mat(color, o));
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, o));
   m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry;
   m.castShadow = true; m.receiveShadow = true; if (o.name) m.name = o.name; g.add(m); return m;
 }
@@ -471,18 +491,10 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   if (hit && hit.object.name) document.getElementById('meta').textContent = 'Kamu klik: ' + hit.object.name;
 });
 
-/* ---------- GLB opsional ---------- */
-function tryLoadGLB(roomKey, path) {
-  const draco = new DRACOLoader(); draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
-  const loader = new GLTFLoader(); loader.setDRACOLoader(draco);
-  loader.load(path, (gltf) => {
-    gltf.scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-    rooms[roomKey].visible = false; scene.add(gltf.scene);
-  }, undefined, () => console.warn('GLB belum ada:', path));
-}
-// tryLoadGLB('lobby', 'models/SO_Lobby.glb');
-// tryLoadGLB('coworking', 'models/SO_Coworking.glb');
-// tryLoadGLB('ceo', 'models/SO_CEO.glb');
+/* ---------- GLB opsional (v2.1: dinonaktifkan total) ---------- */
+// Loader GLB akan ditambahkan lagi nanti, dengan dynamic import, saat file
+// models/SO_*.glb benar-benar sudah ada. Di v2.1 ini sengaja tidak ada
+// import GLTF/DRACO sama sekali, supaya tidak ada lagi titik gagal load.
 
 /* ---------- Loop / FPS / Resize ---------- */
 let frames = 0, lastFpsTime = performance.now();
