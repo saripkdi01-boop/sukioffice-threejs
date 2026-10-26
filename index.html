@@ -3,76 +3,71 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SukiOffice Virtual — Three.js Starter</title>
+<title>SukiOffice Virtual — Three.js v2</title>
 <!--
-  SUKIOFFICE VIRTUAL — FILE STARTER, SIAP TEMPEL KE GITHUB
-  ========================================================
-  CARA PAKAI DARI HP (tanpa laptop, tanpa install):
-  1. Buat repo baru di github.com, misal: sukioffice-threejs (Public)
-  2. Di repo itu: Add file > Upload files > upload file ini dengan nama persis: index.html
-     ATAU: Add file > Create new file > nama: index.html > tempel isi file ini > Commit
-  3. Buka vercel.com > Login with GitHub > Add New Project > Import repo ini
-  4. Setting Vercel untuk versi statis ini:
-       Framework Preset: Other
-       Build Command: (kosongkan)
-       Output Directory: ./
-       Install Command: (kosongkan)
-  5. Klik Deploy. Tunggu READY, buka link .vercel.app di HP untuk dites.
-  6. Kalau repo tidak muncul di Vercel: Vercel > Configure GitHub App >
-     tambahkan repo ini ke aksesnya, lalu refresh.
-
-  NANTI, KALAU GLB ASLI SUDAH ADA:
-  - Upload GLB ke repo di folder: models/SO_Lobby.glb, models/SO_Coworking.glb, dll.
-  - Hapus tanda // di depan baris tryLoadGLB(...) di bawah, commit lagi.
-  - Versi kotak akan otomatis disembunyikan dan diganti GLB.
-
-  CATATAN: Jangan buka file ini langsung lewat file:// di HP.
-  Harus lewat Vercel / StackBlitz / server, karena Three.js pakai modul.
+  SUKIOFFICE VIRTUAL v2 — implementasi dari 4 gambar referensi Three.js
+  Lobby (3 angle) + Co-working + CEO + Meeting & Object Sheet.
+  Masih 1 file statis, tanpa build. Repo: saripkdi01-boop/sukioffice-threejs
+  Vercel: Framework Other, Build kosong, Output ./  — push ke main = auto-deploy.
+  Yang ditiru dari gambar, bukan sekadar kotak:
+  Lobby: pintu kaca double-height, meja resepsionis melengkung kayu + neon teal
+    + trim emas, dinding logo SUKIOFFICE neon, layar hologram WELCOME,
+    sofa bulat teal & mustard, meja kopi bundar kayu, tanaman, lampu gantung emas.
+  Co-working: plafon panel heksagonal, strip neon emas + teal, dinding slat kayu
+    + neon "SukiOffice Virtual", meja panjang kayu terang, kursi ergonomis
+    teal/abu, laptop, lampu meja hangat, papan hologram TASK BOARD / TEAM TASKS.
+  CEO: rak walnut + trim emas + lampu rak teal, jendela kota senja,
+    meja walnut besar trim emas, kursi kulit cokelat, hologram wireframe gedung,
+    lampu desainer hitam-emas.
+  Meeting: M1 meja oval walnut 8 kursi, M2 video wall 4 avatar + grafik + dinding
+    grafik kedua, Collaboration meja bundar + whiteboard sticky notes.
+  Objek: kursi ergonomis, meja kayu, meja meeting oval, kabinet abu,
+    lampu gantung kaca ring teal, counter dapur biru, sudut Prayer Room.
+  Ruangan baru di v2: Kitchen, Prayer Room, Restroom (pola sama, ringan).
+  Catatan jujur: ini rekonstruksi prosedural dari gambar referensi (bukan
+  hasil scan GLB dari gambar). Bentuknya disederhanakan agar tetap 30fps di HP.
+  Kalau GLB asli dari Blender sudah ada, aktifkan tryLoadGLB di bawah.
 -->
 <style>
   body { margin: 0; overflow: hidden; font-family: system-ui, sans-serif; background: #eef4f2; }
   canvas { display: block; }
-  #panel {
-    position: fixed; top: 10px; left: 10px; right: 10px; z-index: 10;
-    background: rgba(0,0,0,0.68); color: #fff; border-radius: 12px;
-    padding: 10px 12px; font-size: 14px; line-height: 1.4;
-    max-width: 520px;
-  }
+  #panel { position: fixed; top: 10px; left: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.70); color: #fff; border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.4; max-width: 640px; }
   #panel b { font-size: 16px; }
-  #panel .desc { opacity: 0.85; font-size: 13px; margin: 2px 0 8px; }
+  #panel .desc { opacity: 0.88; font-size: 13px; margin: 2px 0 8px; }
   #panel .btns { display: flex; flex-wrap: wrap; gap: 6px; }
-  #panel button {
-    border: 0; border-radius: 20px; padding: 7px 12px; cursor: pointer;
-    background: #ffffff; color: #111; font-weight: 600; font-size: 13px;
-  }
+  #panel button { border: 0; border-radius: 20px; padding: 7px 11px; cursor: pointer; background: #fff; color: #111; font-weight: 600; font-size: 12px; }
   #panel button.active { background: #0fa3a3; color: #fff; }
+  #panel button.view { background: #c9a86a; color: #111; }
   #meta { position: fixed; bottom: 10px; left: 10px; z-index: 10; background: rgba(0,0,0,0.55); color: #fff; padding: 6px 10px; border-radius: 20px; font-size: 12px; }
   #hint { position: fixed; bottom: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.55); color: #fff; padding: 6px 10px; border-radius: 20px; font-size: 12px; }
-  @media (max-width: 480px) {
-    #hint { display: none; }
-    #panel { font-size: 13px; }
-  }
+  @media (max-width: 480px) { #hint { display: none; } }
 </style>
 <script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
 </script>
 </head>
 <body>
 <div id="panel">
-  <b>SukiOffice Virtual</b>
-  <div class="desc" id="roomDesc">Lobby — meja resepsionis, lounge, dan layar selamat datang.</div>
+  <b>SukiOffice Virtual — v2</b>
+  <div class="desc" id="roomDesc">Lobby — pintu kaca, meja resepsionis melengkung, logo neon SUKIOFFICE, lounge teal &amp; mustard.</div>
   <div class="btns">
     <button data-room="lobby" class="active" onclick="showRoom('lobby')">Lobby</button>
     <button data-room="coworking" onclick="showRoom('coworking')">Co-working</button>
     <button data-room="ceo" onclick="showRoom('ceo')">CEO</button>
     <button data-room="meeting1" onclick="showRoom('meeting1')">Meeting 1</button>
     <button data-room="meeting2" onclick="showRoom('meeting2')">Meeting 2 • Video Wall</button>
-    <button data-room="huddle" onclick="showRoom('huddle')">Huddle</button>
+    <button data-room="huddle" onclick="showRoom('huddle')">Collab / Huddle</button>
+    <button data-room="kitchen" onclick="showRoom('kitchen')">Kitchen</button>
+    <button data-room="prayer" onclick="showRoom('prayer')">Prayer Room</button>
+    <button data-room="restroom" onclick="showRoom('restroom')">Restroom</button>
+  </div>
+  <div class="btns" style="margin-top:6px">
+    <button class="view" onclick="setView('hero')">Angle: Hero</button>
+    <button class="view" onclick="setView('detail')">Angle: Detail</button>
+    <button class="view" onclick="setView('top')">Angle: Atas</button>
   </div>
 </div>
 <div id="meta">FPS: -- • Klik objek untuk info</div>
@@ -81,20 +76,18 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-/* ---------- 1. Scene, Camera, Renderer ---------- */
+/* ---------- Scene / Camera / Renderer ---------- */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xeef4f2);
-scene.fog = new THREE.FogExp2(0xeef4f2, 0.012);
-
+scene.fog = new THREE.FogExp2(0xeef4f2, 0.010);
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(8, 5, 10);
-
+camera.position.set(7, 3.5, 9);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-// Kunci performa HP: pixelRatio dibatasi, jangan penuh
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -102,222 +95,408 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 document.body.appendChild(renderer.domElement);
-
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 1, 0);
+controls.target.set(0, 1.2, 0);
 controls.maxPolarAngle = Math.PI / 2 - 0.05;
 controls.enableDamping = true;
-
-/* ---------- 2. Cahaya ---------- */
 scene.add(new THREE.HemisphereLight(0xffffff, 0x8a9a96, 0.9));
 const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-sun.position.set(10, 12, 6);
-sun.castShadow = true;
+sun.position.set(10, 12, 6); sun.castShadow = true;
 sun.shadow.mapSize.set(1024, 1024);
 sun.shadow.camera.left = -15; sun.shadow.camera.right = 15;
 sun.shadow.camera.top = 15; sun.shadow.camera.bottom = -15;
 scene.add(sun);
 
-/* ---------- 3. Helper ---------- */
-function box(w, h, d, color, x, y, z, opts = {}) {
-  const mat = new THREE.MeshStandardMaterial({
-    color, roughness: opts.roughness ?? 0.8, metalness: opts.metalness ?? 0.1
-  });
-  if (opts.emissive) {
-    mat.emissive = new THREE.Color(opts.emissive);
-    mat.emissiveIntensity = opts.emissiveIntensity ?? 1.2;
-  }
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  m.position.set(x, y, z);
-  m.castShadow = true; m.receiveShadow = true;
-  if (opts.name) m.name = opts.name;
+/* ---------- Helpers & palette ---------- */
+const C = { teal: 0x0fa3a3, tealDark: 0x2f6f6a, gold: 0xc9a86a, walnut: 0x6b4a2f, walnutDark: 0x4a3220, oak: 0xd9b98a, white: 0xffffff, grey: 0x3a3a3a, greyLight: 0x9aa0a0, mustard: 0xe0a83c, navy: 0x1d2b4a, blue: 0x2b4a7a };
+function mat(color, o = {}) {
+  const m = new THREE.MeshStandardMaterial({ color, roughness: o.roughness ?? 0.8, metalness: o.metalness ?? 0.1, transparent: !!o.transparent, opacity: o.opacity ?? 1 });
+  if (o.emissive) { m.emissive = new THREE.Color(o.emissive); m.emissiveIntensity = o.emissiveIntensity ?? 1.2; }
   return m;
 }
-function cyl(rt, rb, h, color, x, y, z, opts = {}) {
-  const m = new THREE.Mesh(
-    new THREE.CylinderGeometry(rt, rb, h, 24),
-    new THREE.MeshStandardMaterial({ color, roughness: opts.roughness ?? 0.8 })
-  );
-  m.position.set(x, y, z);
-  m.castShadow = true; m.receiveShadow = true;
-  if (opts.name) m.name = opts.name;
-  return m;
+function box(g, w, h, d, color, x, y, z, o = {}) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, o));
+  m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry;
+  m.castShadow = true; m.receiveShadow = true; if (o.name) m.name = o.name; g.add(m); return m;
 }
-function floorFor(group, color = 0xdfe8e5) {
-  const f = new THREE.Mesh(
-    new THREE.PlaneGeometry(30, 20),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.4 })
-  );
-  f.rotation.x = -Math.PI / 2; f.receiveShadow = true;
-  group.add(f);
+function rbox(g, w, h, d, color, x, y, z, o = {}) {
+  const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, 0.08), mat(color, o));
+  m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry;
+  m.castShadow = true; m.receiveShadow = true; if (o.name) m.name = o.name; g.add(m); return m;
 }
-function lightShaft(group, x, z) {
-  // Sinar volumetrik palsu: bidang transparan, murah di HP
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0xfff2cc, transparent: true, opacity: 0.08,
-    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+function cyl(g, rt, rb, h, color, x, y, z, o = {}) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, o.seg ?? 20), mat(color, o));
+  m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry;
+  m.castShadow = true; m.receiveShadow = true; if (o.name) m.name = o.name; g.add(m); return m;
+}
+function planeTex(g, w, h, tex, x, y, z, o = {}) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: !!o.transparent, opacity: o.opacity ?? 1, side: THREE.DoubleSide }));
+  m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry; if (o.name) m.name = o.name; g.add(m); return m;
+}
+function floorFor(g, color = 0xdfe8e5) {
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(30, 20), mat(color, { roughness: 0.35 }));
+  f.rotation.x = -Math.PI / 2; f.receiveShadow = true; g.add(f);
+}
+function backWall(g, color = 0xe8e2d6, z = -5) { box(g, 22, 6, 0.2, color, 0, 3, z); }
+function windowWall(g, z = -4.9) {
+  // Kaca besar + frame gelap, seperti pintu kaca lobby & jendela coworking
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(14, 4), mat(0xbfe3f0, { roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.55 }));
+  glass.position.set(0, 2.2, z); g.add(glass);
+  for (let x = -6; x <= 6; x += 3) box(g, 0.15, 4, 0.15, C.grey, x, 2.2, z + 0.05);
+  box(g, 14, 0.15, 0.15, C.grey, 0, 4.2, z + 0.05);
+}
+function plant(g, x, z, s = 1) {
+  cyl(g, 0.28 * s, 0.22 * s, 0.5 * s, 0x8a6b4a, x, 0.25 * s, z);
+  box(g, 0.9 * s, 0.9 * s, 0.9 * s, 0x3e7d4e, x, 1.0 * s, z);
+  cyl(g, 0.08 * s, 0.08 * s, 0.7 * s, 0x2f7d3e, x + 0.3 * s, 1.6 * s, z);
+}
+function pendant(g, x, y, z) {
+  cyl(g, 0.02, 0.02, 1.4, C.grey, x, y + 0.7, z, { seg: 8 });
+  cyl(g, 0.38, 0.48, 0.35, C.gold, x, y, z, { metalness: 0.6, roughness: 0.3, name: 'Lampu Gantung Emas' });
+  cyl(g, 0.36, 0.36, 0.05, C.teal, x, y - 0.18, z, { emissive: C.teal, emissiveIntensity: 1.0 });
+}
+function sofa(g, x, z, color, ry = 0) {
+  const s = new THREE.Group(); s.position.set(x, 0, z); s.rotation.y = ry; g.add(s);
+  rbox(s, 2.4, 0.45, 1.0, color, 0, 0.35, 0, { name: 'Sofa Bulat' });
+  rbox(s, 2.4, 0.7, 0.25, color, 0, 0.75, -0.4);
+  rbox(s, 0.25, 0.55, 0.9, color, -1.15, 0.65, 0);
+  rbox(s, 0.25, 0.55, 0.9, color, 1.15, 0.65, 0);
+  rbox(s, 0.55, 0.12, 0.55, 0xffffff, -0.6, 0.62, 0.05, { roughness: 0.9 });
+  rbox(s, 0.55, 0.12, 0.55, 0xffffff, 0.6, 0.62, 0.05, { roughness: 0.9 });
+}
+function ergoChair(g, x, z, ry = 0) {
+  const s = new THREE.Group(); s.position.set(x, 0, z); s.rotation.y = ry; g.add(s);
+  rbox(s, 0.62, 0.12, 0.6, C.tealDark, 0, 0.48, 0, { name: 'Kursi Ergonomis' });
+  rbox(s, 0.6, 0.85, 0.12, C.greyLight, 0, 1.0, -0.3);
+  rbox(s, 0.6, 0.35, 0.1, C.teal, 0, 1.15, -0.28);
+  cyl(s, 0.05, 0.05, 0.45, C.grey, 0, 0.25, 0, { seg: 10 });
+  cyl(s, 0.32, 0.32, 0.06, C.grey, 0, 0.05, 0, { seg: 12 });
+}
+function laptop(g, x, y, z, ry = 0) {
+  box(g, 0.55, 0.03, 0.38, 0x222222, x, y, z, { ry, name: 'Laptop' });
+  box(g, 0.55, 0.36, 0.03, 0x1d3a4a, x, y + 0.18, z - 0.19, { ry, emissive: 0x2a7a8a, emissiveIntensity: 0.5 });
+}
+function canvasTex(w, h, draw) {
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  draw(cv.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function holoPanel(g, w, h, title, lines, x, y, z, ry = 0) {
+  const tex = canvasTex(512, 256, (ctx) => {
+    ctx.clearRect(0, 0, 512, 256);
+    ctx.strokeStyle = '#0fa3a3'; ctx.lineWidth = 4; ctx.strokeRect(8, 8, 496, 240);
+    ctx.fillStyle = '#0fa3a3'; ctx.font = 'bold 28px sans-serif'; ctx.fillText(title, 24, 52);
+    ctx.fillStyle = '#cfeef0'; ctx.font = '20px sans-serif';
+    lines.forEach((l, i) => ctx.fillText(l, 24, 92 + i * 32));
   });
-  const p = new THREE.Mesh(new THREE.PlaneGeometry(4, 9), mat);
-  p.position.set(x, 4.5, z); p.rotation.z = 0.5; p.rotation.y = 0.4;
-  group.add(p);
+  return planeTex(g, w, h, tex, x, y, z, { transparent: true, opacity: 0.92, ry, name: title });
 }
-function plant(group, x, z) {
-  group.add(cyl(0.28, 0.22, 0.5, 0x8a6b4a, x, 0.25, z));
-  group.add(box(0.9, 0.9, 0.9, 0x3e7d4e, x, 1.0, z));
+function wireBuilding(g, x, y, z, s = 1) {
+  const grp = new THREE.Group(); grp.position.set(x, y, z); grp.scale.setScalar(s); g.add(grp);
+  const geo1 = new THREE.BoxGeometry(1.4, 0.7, 0.9); const e1 = new THREE.LineSegments(new THREE.EdgesGeometry(geo1), new THREE.LineBasicMaterial({ color: C.teal }));
+  e1.position.y = 0.35; grp.add(e1);
+  const geo2 = new THREE.BoxGeometry(0.8, 0.9, 0.7); const e2 = new THREE.LineSegments(new THREE.EdgesGeometry(geo2), new THREE.LineBasicMaterial({ color: 0x7fe8ec }));
+  e2.position.set(-0.3, 0.45, 0); grp.add(e2);
+  const base = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.4), new THREE.MeshBasicMaterial({ color: C.teal, transparent: true, opacity: 0.15, side: THREE.DoubleSide }));
+  base.rotation.x = -Math.PI / 2; grp.add(base);
+  grp.userData.isHolo = true;
 }
 
-/* ---------- 4. Ruangan ---------- */
+/* ---------- Rooms ---------- */
 const rooms = {};
 const descs = {
-  lobby: 'Lobby — meja resepsionis, lounge, dan layar selamat datang.',
-  coworking: 'Co-working — meja panjang, kursi ergonomis, dan sudut kolaborasi.',
-  ceo: 'CEO Office — meja walnut, kursi kulit, dan rak aksen emas.',
-  meeting1: 'Meeting Room 1 — meja oval untuk 8 orang, panel akustik.',
-  meeting2: 'Meeting Room 2 — video wall besar untuk call & dashboard.',
-  huddle: 'Huddle Room — meja bundar untuk diskusi cepat 4-6 orang.'
+  lobby: 'Lobby — pintu kaca double-height, meja resepsionis melengkung kayu + neon teal, logo SUKIOFFICE, lounge teal & mustard.',
+  coworking: 'Co-working — plafon heksagonal, neon emas + teal, dinding slat kayu, meja panjang, kursi teal, papan hologram TASK BOARD.',
+  ceo: 'CEO Office — rak walnut trim emas, jendela kota senja, meja walnut besar, kursi kulit cokelat, hologram gedung.',
+  meeting1: 'Meeting Room 1 — meja oval walnut untuk 8, kursi abu aksen teal, jendela kota.',
+  meeting2: 'Meeting Room 2 — video wall 4 avatar + grafik, dinding grafik kedua, neon teal.',
+  huddle: 'Collaboration — meja bundar, kursi teal, whiteboard sticky notes.',
+  kitchen: 'Kitchen & Break — counter biru + top kayu, mesin kopi, kursi bar.',
+  prayer: 'Prayer Room — minimalis, sajadah, rak + lentera, dinding lengkung.',
+  restroom: 'Restroom — vanity kayu, cermin backlit, partisi bersih.'
 };
-for (const key of Object.keys(descs)) rooms[key] = new THREE.Group();
+const cams = {
+  lobby: [[7, 3.5, 9], [0, 1.5, -1]], coworking: [[7, 3, 7], [0, 1, 0]], ceo: [[5, 2.6, 5], [0, 1, -1]],
+  meeting1: [[5, 2.8, 5], [0, 1, 0]], meeting2: [[5, 2.6, 6], [0, 1.4, -2]], huddle: [[4, 2.6, 4], [0, 1, 0]],
+  kitchen: [[4, 2.6, 4], [0, 1, 0]], prayer: [[4, 2.2, 4], [0, 1, -1]], restroom: [[4, 2.6, 4], [0, 1, 0]]
+};
+for (const k of Object.keys(descs)) rooms[k] = new THREE.Group();
 
-// LOBBY
+/* LOBBY — dari gambar 1 */
 {
-  const g = rooms.lobby; floorFor(g);
-  g.add(box(4, 1.1, 1, 0xffffff, 0, 0.55, -3, { name: 'Meja Resepsionis' }));
-  g.add(box(4.2, 0.08, 0.1, 0x0fa3a3, 0, 0.3, -2.45, { emissive: 0x0fa3a3, name: 'Neon Resepsionis' }));
-  g.add(box(3.5, 1.2, 0.15, 0xc9a86a, 0, 2.2, -4.2, { name: 'Logo SUKIOFFICE' }));
-  g.add(box(2, 0.8, 0.9, 0x2f6f6a, -4, 0.4, 2, { name: 'Sofa Lobby' }));
-  g.add(box(2, 0.8, 0.9, 0xc9a86a, 4, 0.4, 2, { name: 'Sofa Lobby' }));
-  plant(g, -6, -2); plant(g, 6, -2); lightShaft(g, -2, 0);
+  const g = rooms.lobby; floorFor(g, 0xe8e2d6); backWall(g, 0x2b3440, -6);
+  windowWall(g, -5.9);
+  // Pintu kaca tengah + frame
+  box(g, 5, 3.2, 0.2, C.grey, 0, 1.6, -4.8, { name: 'Pintu Kaca Lobby' });
+  const glassDoor = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 2.9), mat(0xbfe3f0, { transparent: true, opacity: 0.35, roughness: 0.1 }));
+  glassDoor.position.set(0, 1.6, -4.68); g.add(glassDoor);
+  // Langit-langit balok + strip neon
+  box(g, 14, 0.25, 0.25, 0xffffff, 0, 4.8, -1); box(g, 14, 0.25, 0.25, 0xffffff, 0, 4.8, 1);
+  box(g, 14, 0.08, 0.08, C.teal, 0, 4.6, -2, { emissive: C.teal });
+  box(g, 14, 0.08, 0.08, C.gold, 0, 4.6, 2, { emissive: C.gold, emissiveIntensity: 0.8 });
+  pendant(g, -3.5, 3.6, 1.5); pendant(g, 3.5, 3.6, 1.5);
+  // Meja resepsionis melengkung: setengah silinder kayu + neon + trim emas
+  const desk = cyl(g, 2.4, 2.4, 1.1, C.oak, 0, 0.55, -2.2, { seg: 28, name: 'Meja Resepsionis Melengkung' });
+  desk.scale.z = 0.55;
+  box(g, 4.6, 0.08, 0.9, C.oak, 0, 1.14, -2.2, { name: 'Top Meja Resepsionis' });
+  box(g, 4.4, 0.07, 0.07, C.teal, 0, 0.35, -1.15, { emissive: C.teal, name: 'Neon Meja Resepsionis' });
+  box(g, 4.4, 0.07, 0.07, C.gold, 0, 0.12, -1.15, { emissive: C.gold, emissiveIntensity: 0.7 });
+  // Dinding logo: canvas SUKIOFFICE + WELCOME
+  const logoTex = canvasTex(1024, 256, (ctx) => {
+    ctx.fillStyle = '#16202e'; ctx.fillRect(0, 0, 1024, 256);
+    ctx.strokeStyle = '#c9a86a'; ctx.lineWidth = 6; ctx.strokeRect(12, 12, 1000, 232);
+    ctx.fillStyle = '#0fa3a3'; ctx.font = 'bold 92px sans-serif'; ctx.fillText('SUKIOFFICE', 40, 130);
+    ctx.fillStyle = '#ffffff'; ctx.font = '28px sans-serif'; ctx.fillText('WELCOME  •  CONNECTING...', 40, 185);
+    ctx.fillStyle = '#c9a86a'; ctx.fillText('Users Online: 128  •  Check-in  •  Rooms', 40, 222);
+  });
+  planeTex(g, 6.5, 1.6, logoTex, 0, 2.9, -5.85, { name: 'Logo SUKIOFFICE Neon' });
+  holoPanel(g, 1.8, 1.1, 'WELCOME', ['Connecting...', 'Check-in  ->', 'Rooms  ->'], 2.8, 2.6, -5.8);
+  holoPanel(g, 1.4, 0.9, 'INFO', ['Lobby SukiOffice', '09:00 - 18:00'], -3.2, 2.5, -5.8);
+  // Lounge: sofa teal + mustard + meja kopi bundar kayu
+  sofa(g, -3.8, 3.2, C.teal, 0.3); sofa(g, 3.8, 3.2, C.mustard, -0.3);
+  cyl(g, 1.1, 1.1, 0.12, C.oak, 0, 0.42, 3.2, { seg: 24, name: 'Meja Kopi Bundar' });
+  cyl(g, 0.5, 0.6, 0.36, C.oak, 0, 0.18, 3.2, { seg: 16 });
+  box(g, 0.5, 0.05, 0.35, 0x2b3440, -0.3, 0.52, 3.1, { name: 'Buku Lounge' });
+  laptop(g, 0.5, 0.5, 3.4, 0.4);
+  plant(g, -6, -3); plant(g, 6, -3); plant(g, -6, 4.5, 1.2); plant(g, 6, 4.5, 1.2);
+  lightShaft(g, -2, 0);
 }
-// CO-WORKING
+/* CO-WORKING — dari gambar 2 */
 {
-  const g = rooms.coworking; floorFor(g, 0xe6ebe8);
-  for (let i = 0; i < 3; i++) {
-    const z = i * 3 - 3;
-    g.add(box(4, 0.08, 1.2, 0xd9b98a, 0, 0.75, z, { name: 'Meja Co-working' }));
-    g.add(box(0.6, 0.7, 0.6, 0x2f6f6a, -1.2, 0.35, z, { name: 'Kursi Ergonomis' }));
-    g.add(box(0.6, 0.7, 0.6, 0x3a3a3a, 1.2, 0.35, z, { name: 'Kursi Ergonomis' }));
-    g.add(box(1.6, 0.06, 0.1, 0x0fa3a3, 0, 2.2, z, { emissive: 0x0fa3a3, emissiveIntensity: 0.8 }));
+  const g = rooms.coworking; floorFor(g, 0xe6dcc8);
+  // Dinding slat kayu kanan + neon sign
+  for (let i = 0; i < 14; i++) box(g, 0.18, 4.5, 0.15, C.oak, 6.5, 2.25, -3.5 + i * 0.55);
+  const signTex = canvasTex(512, 192, (ctx) => {
+    ctx.fillStyle = '#1d2b4a'; ctx.fillRect(0, 0, 512, 192);
+    ctx.strokeStyle = '#c9a86a'; ctx.lineWidth = 5; ctx.strokeRect(10, 10, 492, 172);
+    ctx.fillStyle = '#7fe8ec'; ctx.font = 'bold 52px sans-serif'; ctx.fillText('SukiOffice', 28, 82); ctx.fillText('Virtual', 28, 142);
+  });
+  planeTex(g, 3.2, 1.2, signTex, 6.4, 2.6, -0.5, { ry: -Math.PI / 2, name: 'Neon SukiOffice Virtual' });
+  windowWall(g, -5.9);
+  // Plafon heksagonal: silinder 6 sisi datar
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) {
+    const hex = cyl(g, 1.1, 1.1, 0.12, 0xd8d8d8, -4 + c * 2.4, 4.7, -2 + r * 2.4, { seg: 6 });
+    hex.rotation.x = Math.PI / 2;
   }
-  plant(g, -5, 4); plant(g, 5, 4);
-}
-// CEO
-{
-  const g = rooms.ceo; floorFor(g, 0xe9e2d6);
-  g.add(box(2.4, 0.08, 1.2, 0x6b4a2f, 0, 0.78, -2, { name: 'Meja CEO' }));
-  g.add(box(0.7, 1.0, 0.7, 0x222222, 0, 0.5, -0.5, { name: 'Kursi CEO' }));
-  g.add(box(3, 2.2, 0.4, 0x4a3220, -3.5, 1.1, -3, { name: 'Rak CEO' }));
-  g.add(box(0.6, 0.08, 0.4, 0x0fa3a3, 0.8, 0.86, -2, { emissive: 0x0fa3a3, name: 'Hologram Meja CEO' }));
-  lightShaft(g, 3, -1);
-}
-// MEETING 1
-{
-  const g = rooms.meeting1; floorFor(g);
-  g.add(box(3.6, 0.08, 1.4, 0x6b4a2f, 0, 0.75, 0, { name: 'Meja Meeting 1' }));
-  for (const [x, z] of [[-1.4, -1.2], [0, -1.2], [1.4, -1.2], [-1.4, 1.2], [0, 1.2], [1.4, 1.2]]) {
-    g.add(box(0.6, 0.7, 0.6, 0x3a3a3a, x, 0.35, z, { name: 'Kursi Meeting' }));
+  box(g, 14, 0.08, 0.08, C.gold, 0, 4.5, -3, { emissive: C.gold, emissiveIntensity: 0.8 });
+  box(g, 14, 0.08, 0.08, C.teal, 0, 4.5, 3, { emissive: C.teal });
+  pendant(g, -2, 3.4, -1); pendant(g, 2, 3.4, 1);
+  // Meja panjang kayu terang + kursi + laptop + lampu meja
+  for (let row = 0; row < 2; row++) {
+    const z = -1.5 + row * 3;
+    box(g, 7, 0.1, 1.3, C.oak, 0, 0.75, z, { name: 'Meja Co-working Panjang' });
+    box(g, 7, 0.65, 0.1, C.oak, 0, 0.38, z, {});
+    for (let i = -1; i <= 1; i++) {
+      ergoChair(g, i * 2.2, z - 1.0, 0); ergoChair(g, i * 2.2, z + 1.0, Math.PI);
+      if (i !== 0) laptop(g, i * 2.2, 0.82, z);
+    }
+    box(g, 0.15, 0.5, 0.15, C.gold, -2.5, 1.05, z, { metalness: 0.6 });
+    box(g, 0.5, 0.08, 0.3, 0xffe9b0, -2.5, 1.32, z, { emissive: 0xffd97a, emissiveIntensity: 0.8, name: 'Lampu Meja Hangat' });
   }
-  g.add(box(2.5, 1.4, 0.1, 0xdddddd, 0, 1.8, -4, { name: 'Layar Presentasi' }));
+  holoPanel(g, 1.6, 1.0, 'TASK BOARD', ['Design UI  ✓', 'Model Env  ✓', 'Test Collab  ...'], -3, 2.2, -1);
+  holoPanel(g, 1.6, 1.0, 'TEAM TASKS', ['Design UI Complete', 'Model Complete', 'Test In Progress'], 3.5, 2.2, 1.5);
+  holoPanel(g, 1.4, 0.9, 'Project Alpha', ['3D Scene — 80%', '████████  80%'], 0, 2.4, -3.5);
+  sofa(g, 5.5, 4.2, C.teal, -0.4);
+  box(g, 1.6, 0.08, 0.7, C.oak, 5.2, 0.42, 3.0, { name: 'Meja Lounge Co-working' });
+  plant(g, -6, -4); plant(g, -6, 4); plant(g, 6, 4.5);
 }
-// MEETING 2 — VIDEO WALL (Canvas Texture, tanpa video asli)
+/* CEO — dari gambar 3 */
 {
-  const g = rooms.meeting2; floorFor(g, 0xe2e8ea);
-  g.add(box(5, 0.08, 1.6, 0x6b4a2f, 0, 0.75, 0, { name: 'Meja Meeting 2' }));
-  for (let i = -2; i <= 2; i++) {
-    g.add(box(0.6, 0.7, 0.6, 0x2f6f6a, i * 1.1, 0.35, -1.4, { name: 'Kursi Meeting 2' }));
-    g.add(box(0.6, 0.7, 0.6, 0x2f6f6a, i * 1.1, 0.35, 1.4, { name: 'Kursi Meeting 2' }));
+  const g = rooms.ceo; floorFor(g, 0x2a2320);
+  // Jendela kota senja (canvas)
+  const cityTex = canvasTex(1024, 512, (ctx) => {
+    const grad = ctx.createLinearGradient(0, 0, 0, 512); grad.addColorStop(0, '#7fb2d8'); grad.addColorStop(0.6, '#e8a87a'); grad.addColorStop(1, '#2b3440');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 1024, 512);
+    const cols = ['#1d2b4a', '#2b4a6a', '#16202e', '#3a5a7a'];
+    for (let i = 0; i < 14; i++) {
+      const w = 50 + (i * 37 % 60), h = 150 + (i * 53 % 220), x = i * 76;
+      ctx.fillStyle = cols[i % 4]; ctx.fillRect(x, 512 - h, w, h);
+      ctx.fillStyle = '#7fe8ec';
+      for (let yy = 512 - h + 20; yy < 500; yy += 28) for (let xx = x + 8; xx < x + w - 8; xx += 18) if ((xx + yy) % 3 === 0) ctx.fillRect(xx, yy, 6, 8);
+    }
+  });
+  planeTex(g, 12, 4.5, cityTex, 0, 2.4, -5.9, { name: 'Jendela Kota CEO' });
+  for (let x = -4; x <= 4; x += 4) box(g, 0.15, 4.5, 0.15, C.grey, x, 2.4, -5.8);
+  // Rak walnut + trim emas + lampu rak teal + buku
+  box(g, 7, 3.4, 0.5, C.walnutDark, 3.5, 1.7, -4.5, { name: 'Rak Walnut CEO' });
+  box(g, 7.1, 0.08, 0.55, C.gold, 3.5, 3.45, -4.5, { metalness: 0.6 });
+  for (let s = 0; s < 3; s++) box(g, 6.8, 0.07, 0.45, C.walnut, 3.5, 0.9 + s * 0.9, -4.5);
+  box(g, 6.8, 0.06, 0.06, C.teal, 3.5, 1.82, -4.22, { emissive: C.teal });
+  box(g, 6.8, 0.06, 0.06, C.teal, 3.5, 2.72, -4.22, { emissive: C.teal });
+  const bookCols = [0x2b3440, 0xc9a86a, 0x7a2a2a, 0x2f6f6a, 0xdddddd];
+  for (let i = 0; i < 22; i++) {
+    const col = bookCols[i % 5];
+    box(g, 0.12, 0.55 + (i % 3) * 0.08, 0.3, col, 0.8 + i * 0.29, 1.25 + Math.floor(i / 11) * 0.9, -4.45);
   }
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
-  const ctx = cv.getContext('2d');
-  ctx.fillStyle = '#0b1f22'; ctx.fillRect(0, 0, 512, 256);
-  ctx.fillStyle = '#0fa3a3'; ctx.fillRect(0, 0, 512, 36);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 20px sans-serif'; ctx.fillText('SUKIOFFICE  •  VIDEO WALL', 16, 25);
-  ctx.fillStyle = '#c9a86a';
-  [60, 110, 80, 140, 100].forEach((h, i) => ctx.fillRect(40 + i * 70, 200 - h, 40, h));
-  ctx.fillStyle = '#2f6f6a';
-  for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) ctx.fillRect(330 + c * 55, 60 + r * 60, 45, 45);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 2.4), new THREE.MeshBasicMaterial({ map: tex }));
-  wall.position.set(0, 2.0, -4.5); wall.name = 'Video Wall';
-  g.add(wall);
+  box(g, 0.35, 0.35, 0.3, C.gold, 5.8, 1.3, -4.4, { metalness: 0.7, name: 'Patung Emas CEO' });
+  plant(g, 6.8, -3.5, 1.3);
+  // Meja walnut besar trim emas + kursi kulit + lampu desainer
+  box(g, 4.2, 0.12, 1.6, C.walnut, 0, 0.78, 0, { name: 'Meja CEO Walnut' });
+  box(g, 4.2, 0.06, 0.06, C.gold, 0, 0.72, 0.82, { metalness: 0.6 });
+  box(g, 0.5, 0.72, 1.4, C.walnutDark, -1.8, 0.36, 0); box(g, 0.5, 0.72, 1.4, C.walnutDark, 1.8, 0.36, 0);
+  rbox(g, 1.0, 1.25, 0.35, 0x5a2e1e, -0.6, 0.95, 1.6, { ry: Math.PI, name: 'Kursi Kulit CEO' });
+  rbox(g, 1.0, 0.25, 0.9, 0x5a2e1e, -0.6, 0.5, 1.3, { ry: Math.PI });
+  // Lampu desainer hitam-emas
+  cyl(g, 0.04, 0.04, 0.8, C.gold, -1.6, 1.2, -0.5, { metalness: 0.7, seg: 10 });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.32, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x222222, { roughness: 0.4 }));
+  dome.position.set(-1.6, 1.6, -0.5); dome.castShadow = true; g.add(dome);
+  cyl(g, 0.28, 0.28, 0.04, C.teal, -1.6, 1.58, -0.5, { emissive: C.teal });
+  box(g, 0.7, 0.06, 0.5, 0x5a2e1e, -1.2, 0.88, 0.3, { name: 'Buku SukiOffice' });
+  wireBuilding(g, 0.4, 0.86, -0.2, 1.1);
+  holoPanel(g, 1.5, 0.85, 'FLOOR 42 PLAN', ['Structure Integrity 98%', 'SukiOffice Tower'], 0.4, 1.7, -0.2);
 }
-// HUDDLE
+/* MEETING 1 */
+{
+  const g = rooms.meeting1; floorFor(g, 0xe6dcc8); windowWall(g, -5.9);
+  const oval = cyl(g, 1.9, 1.9, 0.1, C.walnut, 0, 0.75, 0, { seg: 28, name: 'Meja Oval Meeting 1' });
+  oval.scale.x = 1.35;
+  box(g, 0.6, 0.7, 1.0, C.walnutDark, 0, 0.35, 0);
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    ergoChair(g, Math.cos(a) * 2.6, Math.sin(a) * 1.7, -a + Math.PI / 2);
+  }
+  box(g, 3, 1.6, 0.15, 0xd8dde2, 0, 1.9, -4.5, { name: 'Panel Akustik Meeting 1' });
+  plant(g, 5.5, -4);
+}
+/* MEETING 2 — VIDEO WALL */
+{
+  const g = rooms.meeting2; floorFor(g, 0x2b3440); backWall(g, C.navy, -5.5);
+  box(g, 10, 0.08, 0.08, C.teal, 0, 3.6, -5.4, { emissive: C.teal });
+  box(g, 10, 0.08, 0.08, C.teal, 0, 0.4, -5.4, { emissive: C.teal });
+  const vwTex = canvasTex(1024, 512, (ctx) => {
+    ctx.fillStyle = '#0b2a4a'; ctx.fillRect(0, 0, 1024, 512);
+    const faces = ['#f2c9a0', '#e8b0d0', '#c9a87a', '#a8d8b0'];
+    const names = ['Ana', 'Budi', 'Sari', 'Dewi'];
+    faces.forEach((c, i) => {
+      const x = 30 + (i % 2) * 330, y = 30 + Math.floor(i / 2) * 200;
+      ctx.fillStyle = '#123a5a'; ctx.fillRect(x, y, 300, 180);
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + 150, y + 75, 42, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#111'; ctx.fillRect(x + 132, y + 68, 8, 8); ctx.fillRect(x + 160, y + 68, 8, 8);
+      ctx.fillStyle = '#fff'; ctx.font = '20px sans-serif'; ctx.fillText(names[i], x + 16, y + 165);
+    });
+    ctx.fillStyle = '#0fa3a3'; ctx.fillRect(700, 30, 294, 452);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 24px sans-serif'; ctx.fillText('GRAFIK', 720, 70);
+    ctx.fillStyle = '#c9a86a';
+    [80, 140, 110, 190, 160].forEach((h, i) => ctx.fillRect(720 + i * 52, 430 - h, 34, h));
+    ctx.strokeStyle = '#7fe8ec'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(720, 300); ctx.lineTo(770, 260); ctx.lineTo(820, 280); ctx.lineTo(870, 210); ctx.lineTo(920, 180); ctx.stroke();
+  });
+  planeTex(g, 6.5, 3.0, vwTex, -0.8, 2.0, -5.35, { name: 'Video Wall Meeting 2' });
+  const chartTex = canvasTex(512, 256, (ctx) => {
+    ctx.fillStyle = '#0b1f22'; ctx.fillRect(0, 0, 512, 256);
+    ctx.strokeStyle = '#7fe8ec'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(30, 200); ctx.lineTo(130, 150); ctx.lineTo(230, 170); ctx.lineTo(330, 90); ctx.lineTo(470, 50); ctx.stroke();
+    ctx.fillStyle = '#0fa3a3'; [60, 100, 80, 140].forEach((h, i) => ctx.fillRect(60 + i * 100, 220 - h, 50, h));
+  });
+  planeTex(g, 3.2, 1.6, chartTex, 4.2, 2.0, -5.35, { ry: -0.3, name: 'Dinding Grafik Meeting 2' });
+  box(g, 5, 0.1, 1.6, C.walnut, 0, 0.75, 0, { name: 'Meja Meeting 2' });
+  for (let i = -2; i <= 2; i++) { ergoChair(g, i * 1.1, -1.4, 0); ergoChair(g, i * 1.1, 1.4, Math.PI); }
+  plant(g, -5, -4); plant(g, 5, -4);
+}
+/* HUDDLE / COLLABORATION */
 {
   const g = rooms.huddle; floorFor(g);
-  g.add(cyl(0.9, 0.9, 0.08, 0xd9b98a, 0, 0.75, 0, { name: 'Meja Bundar Huddle' }));
-  g.add(cyl(0.15, 0.3, 0.75, 0x3a3a3a, 0, 0.37, 0));
-  for (const [x, z] of [[-1.3, 0], [1.3, 0], [0, -1.3], [0, 1.3]]) {
-    g.add(box(0.6, 0.7, 0.6, 0x2f6f6a, x, 0.35, z, { name: 'Kursi Huddle' }));
-  }
-  g.add(box(2.2, 1.4, 0.08, 0xffffff, 0, 1.6, -3, { name: 'Kaca Tulis Huddle' }));
+  cyl(g, 1.3, 1.3, 0.1, C.oak, 0, 0.75, 0, { seg: 28, name: 'Meja Bundar Collaboration' });
+  cyl(g, 0.2, 0.35, 0.7, C.grey, 0, 0.35, 0, { seg: 14 });
+  for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; ergoChair(g, Math.cos(a) * 1.9, Math.sin(a) * 1.9, -a); }
+  box(g, 3.2, 1.8, 0.1, 0xffffff, 0, 1.8, -4.2, { name: 'Whiteboard Collaboration' });
+  const noteCols = [0x7fe8ec, 0xff9ecb, 0xffe97a, 0xa8d8b0];
+  for (let i = 0; i < 10; i++) box(g, 0.28, 0.28, 0.03, noteCols[i % 4], -1.2 + (i % 5) * 0.6, 2.1 - Math.floor(i / 5) * 0.5, -4.13);
+  pendant(g, 0, 3.2, 0);
+  plant(g, 5, -3.5);
 }
-
+/* KITCHEN — dari object sheet */
+{
+  const g = rooms.kitchen; floorFor(g, 0xe8e2d6);
+  box(g, 4.5, 0.9, 0.8, C.blue, 0, 0.45, -2, { name: 'Counter Dapur Biru' });
+  box(g, 4.7, 0.1, 0.9, C.oak, 0, 0.95, -2, { name: 'Top Counter Kayu' });
+  box(g, 0.8, 0.15, 0.5, 0xdddddd, -1, 1.02, -2, { metalness: 0.5, name: 'Sink Dapur' });
+  box(g, 0.5, 0.6, 0.4, 0x222222, 1.5, 1.3, -2.1, { name: 'Mesin Kopi' });
+  box(g, 0.3, 0.4, 0.3, 0xffffff, 1.0, 1.2, -2.1);
+  for (let i = -1; i <= 1; i++) { cyl(g, 0.28, 0.28, 0.08, C.oak, i * 1.4, 0.75, 0.5, { seg: 18, name: 'Kursi Bar' }); cyl(g, 0.05, 0.05, 0.7, C.grey, i * 1.4, 0.35, 0.5, { seg: 10 }); }
+  box(g, 2.5, 0.08, 0.6, C.oak, 0, 1.8, -3.5, { name: 'Rak Dapur' });
+  plant(g, -3.5, -2);
+}
+/* PRAYER ROOM — dari object sheet */
+{
+  const g = rooms.prayer; floorFor(g, 0xefe8da);
+  box(g, 8, 3.2, 0.2, 0xe8ddc8, 0, 1.6, -4, { name: 'Dinding Prayer Room' });
+  // Lengkung mihrab: torus setengah
+  const arch = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.12, 10, 24, Math.PI), mat(C.gold, { metalness: 0.5 }));
+  arch.position.set(0, 1.6, -3.85); g.add(arch);
+  box(g, 1.8, 0.06, 1.2, 0xd8cbb0, 0, 0.04, -1.5, { name: 'Sajadah' });
+  box(g, 1.6, 0.03, 1.0, 0xb89a6a, 0, 0.07, -1.5);
+  box(g, 1.8, 0.06, 1.2, 0xd8cbb0, -2.2, 0.04, -1.5);
+  box(g, 1.8, 0.06, 1.2, 0xd8cbb0, 2.2, 0.04, -1.5);
+  box(g, 1.4, 0.08, 0.35, C.oak, 0, 1.1, -3.8, { name: 'Rak Prayer Room' });
+  box(g, 0.22, 0.35, 0.22, C.gold, -0.4, 1.32, -3.8, { emissive: 0xffd97a, emissiveIntensity: 0.9, name: 'Lentera Prayer' });
+  plant(g, 0.9, -3.6, 0.8);
+}
+/* RESTROOM */
+{
+  const g = rooms.restroom; floorFor(g, 0xdde3e6);
+  box(g, 4, 0.9, 0.7, 0x8a6b4a, 0, 0.45, -2.5, { name: 'Vanity Restroom' });
+  box(g, 4.2, 0.08, 0.8, 0xffffff, 0, 0.95, -2.5);
+  const mirror = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), mat(0xcfe8f0, { metalness: 0.6, roughness: 0.15, emissive: 0x9fd8e8, emissiveIntensity: 0.3 }));
+  mirror.position.set(0, 1.9, -2.85); g.add(mirror);
+  box(g, 3.4, 0.06, 0.06, 0xffffff, 0, 2.55, -2.84, { emissive: 0xffffff, emissiveIntensity: 0.6 });
+  for (let i = -1; i <= 1; i++) box(g, 0.08, 1.8, 1.2, 0x9aa0a0, i * 1.6, 0.9, 1.5, { name: 'Partisi Restroom' });
+  plant(g, 3.5, -2);
+}
 for (const g of Object.values(rooms)) scene.add(g);
 
-/* ---------- 5. Ganti ruangan ---------- */
+/* ---------- Ganti ruangan + angle ---------- */
+let currentRoom = 'lobby';
 window.showRoom = (name) => {
-  for (const [key, g] of Object.entries(rooms)) g.visible = (key === name);
+  currentRoom = name;
+  for (const [k, g] of Object.entries(rooms)) g.visible = (k === name);
   document.getElementById('roomDesc').textContent = descs[name] || '';
-  document.querySelectorAll('#panel button').forEach(b => {
-    b.classList.toggle('active', b.dataset.room === name);
-  });
-  camera.position.set(8, 5, 10);
-  controls.target.set(0, 1, 0);
+  document.querySelectorAll('#panel button[data-room]').forEach(b => b.classList.toggle('active', b.dataset.room === name));
+  const c = cams[name] || cams.lobby;
+  camera.position.set(...c[0]); controls.target.set(...c[1]);
+};
+window.setView = (v) => {
+  const base = cams[currentRoom][0]; const tgt = cams[currentRoom][1];
+  if (v === 'hero') { camera.position.set(...base); }
+  if (v === 'detail') { camera.position.set(base[0] * 0.45, 1.6, base[2] * 0.45); }
+  if (v === 'top') { camera.position.set(0, 11, 0.01); controls.target.set(0, 0, 0); return; }
+  controls.target.set(...tgt);
 };
 showRoom('lobby');
 
-/* ---------- 6. Klik objek = info ---------- */
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+/* ---------- Klik objek ---------- */
+const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2();
 renderer.domElement.addEventListener('pointerdown', (e) => {
   mouse.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(mouse, camera);
   const hit = raycaster.intersectObjects(scene.children, true)[0];
-  if (hit && hit.object.name) {
-    document.getElementById('meta').textContent = 'Kamu klik: ' + hit.object.name;
-  }
+  if (hit && hit.object.name) document.getElementById('meta').textContent = 'Kamu klik: ' + hit.object.name;
 });
 
-/* ---------- 7. GLB opsional — hapus // kalau GLB sudah diupload ---------- */
+/* ---------- GLB opsional ---------- */
 function tryLoadGLB(roomKey, path) {
-  const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
-  const loader = new GLTFLoader();
-  loader.setDRACOLoader(draco);
+  const draco = new DRACOLoader(); draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+  const loader = new GLTFLoader(); loader.setDRACOLoader(draco);
   loader.load(path, (gltf) => {
-    const model = gltf.scene;
-    model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-    rooms[roomKey].visible = false;
-    scene.add(model);
-  }, undefined, () => {
-    console.warn('GLB belum ada, pakai versi kotak:', path);
-  });
+    gltf.scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    rooms[roomKey].visible = false; scene.add(gltf.scene);
+  }, undefined, () => console.warn('GLB belum ada:', path));
 }
 // tryLoadGLB('lobby', 'models/SO_Lobby.glb');
 // tryLoadGLB('coworking', 'models/SO_Coworking.glb');
 // tryLoadGLB('ceo', 'models/SO_CEO.glb');
-// tryLoadGLB('meeting1', 'models/SO_Meeting1.glb');
-// tryLoadGLB('meeting2', 'models/SO_Meeting2.glb');
 
-/* ---------- 8. Loop, FPS, Resize ---------- */
+/* ---------- Loop / FPS / Resize ---------- */
 let frames = 0, lastFpsTime = performance.now();
 function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
-  frames++;
-  const now = performance.now();
+  requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera);
+  frames++; const now = performance.now();
   if (now - lastFpsTime >= 1000) {
-    document.getElementById('meta').textContent =
-      'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • Klik objek untuk info';
+    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v2 • Klik objek untuk info';
     frames = 0; lastFpsTime = now;
   }
 }
 animate();
-
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
 });
 </script>
 </body>
