@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SukiOffice Virtual — Three.js v2.2</title>
+<title>SukiOffice Virtual — Three.js v2.3</title>
 <!--
   SUKIOFFICE VIRTUAL v2 — implementasi dari 4 gambar referensi Three.js
   Lobby (3 angle) + Co-working + CEO + Meeting & Object Sheet.
@@ -51,9 +51,10 @@
 </head>
 <body>
 <div id="panel">
-  <b>SukiOffice Virtual — v2.2</b>
-  <div class="desc" id="roomDesc">Lobby — pintu kaca, meja resepsionis melengkung, logo neon SUKIOFFICE, lounge teal &amp; mustard.</div>
+  <b>SukiOffice Virtual — v2.3 • Lobby Galeri Produk</b>
+  <div class="desc" id="roomDesc">Lobby — Galeri Produk SUKI APPS: GrahaOS, Hermes, SukiApps Web, SUKI Web Studio, Marketplace, Games, Bahari, SUKI GROUP. Klik panel produk untuk detail.</div>
   <div class="desc" id="loadStatus">Memuat 3D... kalau 8 detik masih tulisan ini, berarti modul Three.js gagal dimuat.</div>
+  <div class="desc" id="productInfo">Klik salah satu panel produk di Lobby untuk membaca detailnya di sini.</div>
   <div class="btns">
     <button data-room="lobby" class="active" onclick="showRoom('lobby')">Lobby</button>
     <button data-room="coworking" onclick="showRoom('coworking')">Co-working</button>
@@ -221,6 +222,36 @@ function holoPanel(g, w, h, title, lines, x, y, z, ry = 0) {
   });
   return planeTex(g, w, h, tex, x, y, z, { transparent: true, opacity: 0.92, ry, name: title });
 }
+/* ---------- Galeri Produk Lobby v2.3 ---------- */
+/* Data produk = fakta dari memori SukiApps, bukan klaim baru.
+   Harga & status ditulis apa adanya; Bahari ditandai konsep, bukan live. */
+const PRODUCTS = [
+  { title: 'GrahaOS', color: '#0fa3a3', lines: ['Sistem Operasi Developer', 'Properti', 'HUNI 299rb / GRAHA 899rb', 'KAWASAN 2,5jt per bulan', 'Founding: 3 slot, harga terkunci'], info: 'GrahaOS — Sistem Operasi Developer Properti, by SUKI Web Studio. SaaS properti flagship: HUNI Rp299rb, GRAHA Rp899rb, KAWASAN Rp2,5jt per bulan, plus 3 slot founding tenant dengan harga terkunci seumur hidup. Live di grahaos.vercel.app.' },
+  { title: 'Hermes', color: '#c9a86a', lines: ['Asisten AI di HP', 'Chat native ringan', 'minSdk 27, RAM 3GB', 'Jerouter / Muse / OpenRouter', 'DCompute • TTS Bacakan'], info: 'Hermes — Asisten AI di HP, aplikasi chat native ringan untuk Oppo A5s (minSdk 27, RAM 3GB). Multi-provider: Jerouter, Muse by Meta, OpenRouter, DCompute. Fitur: TTS Bacakan per pesan dan ingatan persisten yang bisa diimpor. Varian Lite v8.1.' },
+  { title: 'SukiApps Web', color: '#0fa3a3', lines: ['sukiapps.web.id', 'Platform Digital Milik Kita', 'Marketplace • Properti • Jobs', 'Groups • Kampung • Business', 'Fokus Sultra, skala nasional'], info: 'SukiApps Web — sukiapps.web.id, ekosistem digital dengan tagline Platform Digital Milik Kita. Lini: Marketplace, Properti, Jobs, Groups, Kampung, Business. Fokus awal kebutuhan lokal Sulawesi Tenggara/Kendari, lalu skala nasional. Dibangun Next.js + Supabase + Vercel.' },
+  { title: 'SUKI Web Studio', color: '#c9a86a', lines: ['Jasa Website', 'Landing 99rb • Company 299rb', 'Toko 499rb • Web App 999rb', 'Care Plan 49rb/bln', 'Garansi bug 30 hari'], info: 'SUKI Web Studio — Jasa website: Landing Rp99rb (min. 5 halaman), Company Rp299rb, Toko Online Rp499rb, Web App Custom Rp999rb, Care Plan Rp49rb/bulan, garansi bug 30 hari. Versi internasional: $290 / $500 / $890, Care Plan $29/bulan. Promo gratis sudah dicabut total.' },
+  { title: 'Marketplace', color: '#0fa3a3', lines: ['Jual Beli Lokal', 'Live di SukiApps Web', 'Fokus Kendari & Sultra', 'Data nyata, tanpa angka palsu'], info: 'SUKI Marketplace — Jual beli lokal yang sudah live di sukiapps.web.id. Fokus Kendari dan Sulawesi Tenggara. Prinsip: data nyata, tidak ada pengguna, trafik, atau transaksi yang dibuat-buat.' },
+  { title: 'SUKI Games', color: '#c9a86a', lines: ['JALA + SUKI Kampung', 'Fishing sim skill-based', 'NON-JUDI, ekonomi transparan', 'Main bersama. Bangun bersama.'], info: 'SUKI Games — Hub game SUKI Kampung dan JALA, simulasi memancing di dunia inspirasi Sultra. Skill-based, ekonomi transparan, mobile-first, dan aturan keras: tidak boleh diubah menjadi mekanisme judi.' },
+  { title: 'SUKI Bahari', color: '#0fa3a3', lines: ['SaaS Suara untuk Nelayan', 'Rekam tangkapan via voice', 'Info cuaca & laut', 'STATUS: KONSEP, belum live'], info: 'SUKI Bahari — Konsep SaaS voice-first untuk nelayan (belum live): rekam hasil tangkapan lewat suara, info cuaca dan laut, bantuan praktis. Info cuaca/laut adalah info keselamatan, jadi wajib pakai sumber tepercaya dan terkini saat disajikan sebagai data nyata.' },
+  { title: 'SUKI GROUP', color: '#c9a86a', lines: ['Toko Telegram SukiApps', 'Pusat transaksi & layanan', 'Bayar QRIS DANA Bisnis', 'Transfer SeaBank'], info: 'SUKI GROUP — Toko Telegram SukiApps, pusat transaksi dan layanan. Pembayaran resmi: QRIS DANA Bisnis a.n. Suki Apps dan transfer SeaBank. Bot Telegram menjadi pusat kendali personal: tujuan, target, laporan, dan monitoring.' },
+];
+function productPanel(g, x, z, ry, p) {
+  const s = new THREE.Group(); s.position.set(x, 0, z); s.rotation.y = ry; g.add(s);
+  box(s, 2.4, 0.12, 0.15, 0x2b3440, 0, 0.06, 0);
+  box(s, 0.12, 0.95, 0.12, 0x2b3440, -1.0, 0.55, 0);
+  box(s, 0.12, 0.95, 0.12, 0x2b3440, 1.0, 0.55, 0);
+  box(s, 2.4, 1.5, 0.12, 0x16202e, 0, 1.75, 0);
+  box(s, 2.4, 0.08, 0.14, p.color === '#0fa3a3' ? C.teal : C.gold, 0, 2.54, 0, { emissive: p.color === '#0fa3a3' ? C.teal : C.gold, emissiveIntensity: 0.8 });
+  const tex = canvasTex(512, 320, (ctx) => {
+    ctx.fillStyle = '#16202e'; ctx.fillRect(0, 0, 512, 320);
+    ctx.fillStyle = p.color; ctx.fillRect(0, 0, 512, 8);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 44px sans-serif'; ctx.fillText(p.title, 24, 66);
+    ctx.fillStyle = '#cfeef0'; ctx.font = '24px sans-serif';
+    p.lines.forEach((l, i) => ctx.fillText(l, 24, 112 + i * 36));
+  });
+  const m = planeTex(s, 2.3, 1.42, tex, 0, 1.75, 0.07, { name: p.title });
+  m.userData.product = p.info;
+}
 function wireBuilding(g, x, y, z, s = 1) {
   const grp = new THREE.Group(); grp.position.set(x, y, z); grp.scale.setScalar(s); g.add(grp);
   const geo1 = new THREE.BoxGeometry(1.4, 0.7, 0.9); const e1 = new THREE.LineSegments(new THREE.EdgesGeometry(geo1), new THREE.LineBasicMaterial({ color: C.teal }));
@@ -235,7 +266,7 @@ function wireBuilding(g, x, y, z, s = 1) {
 /* ---------- Rooms ---------- */
 const rooms = {};
 const descs = {
-  lobby: 'Lobby — pintu kaca double-height, meja resepsionis melengkung kayu + neon teal, logo SUKIOFFICE, lounge teal & mustard.',
+  lobby: 'Lobby — GALERI PRODUK SUKI APPS: GrahaOS, Hermes, SukiApps Web, SUKI Web Studio, Marketplace, Games, Bahari, SUKI GROUP. Klik panel produk untuk detail.',
   coworking: 'Co-working — plafon heksagonal, neon emas + teal, dinding slat kayu, meja panjang, kursi teal, papan hologram TASK BOARD.',
   ceo: 'CEO Office — rak walnut trim emas, jendela kota senja, meja walnut besar, kursi kulit cokelat, hologram gedung.',
   meeting1: 'Meeting Room 1 — meja oval walnut untuk 8, kursi abu aksen teal, jendela kota.',
@@ -275,11 +306,11 @@ for (const k of Object.keys(descs)) rooms[k] = new THREE.Group();
   const logoTex = canvasTex(1024, 256, (ctx) => {
     ctx.fillStyle = '#16202e'; ctx.fillRect(0, 0, 1024, 256);
     ctx.strokeStyle = '#c9a86a'; ctx.lineWidth = 6; ctx.strokeRect(12, 12, 1000, 232);
-    ctx.fillStyle = '#0fa3a3'; ctx.font = 'bold 92px sans-serif'; ctx.fillText('SUKIOFFICE', 40, 130);
-    ctx.fillStyle = '#ffffff'; ctx.font = '28px sans-serif'; ctx.fillText('WELCOME  •  CONNECTING...', 40, 185);
-    ctx.fillStyle = '#c9a86a'; ctx.fillText('Users Online: 128  •  Check-in  •  Rooms', 40, 222);
+    ctx.fillStyle = '#0fa3a3'; ctx.font = 'bold 92px sans-serif'; ctx.fillText('SUKI APPS', 40, 130);
+    ctx.fillStyle = '#ffffff'; ctx.font = '28px sans-serif'; ctx.fillText('SUKIOFFICE VIRTUAL  •  LOBBY UTAMA', 40, 185);
+    ctx.fillStyle = '#c9a86a'; ctx.fillText('sukiapps.web.id  •  Platform Digital Milik Kita', 40, 222);
   });
-  planeTex(g, 6.5, 1.6, logoTex, 0, 2.9, -5.85, { name: 'Logo SUKIOFFICE Neon' });
+  planeTex(g, 6.5, 1.6, logoTex, 0, 2.9, -5.85, { name: 'Brand SUKI APPS' });
   holoPanel(g, 1.8, 1.1, 'WELCOME', ['Connecting...', 'Check-in  ->', 'Rooms  ->'], 2.8, 2.6, -5.8);
   holoPanel(g, 1.4, 0.9, 'INFO', ['Lobby SukiOffice', '09:00 - 18:00'], -3.2, 2.5, -5.8);
   // Lounge: sofa teal + mustard + meja kopi bundar kayu
@@ -290,6 +321,21 @@ for (const k of Object.keys(descs)) rooms[k] = new THREE.Group();
   laptop(g, 0.5, 0.5, 3.4, 0.4);
   plant(g, -6, -3); plant(g, 6, -3); plant(g, -6, 4.5, 1.2); plant(g, 6, 4.5, 1.2);
   lightShaft(g, -2, 0);
+  // GALERI PRODUK v2.3 — 8 stand di kiri/kanan lobby, menghadap ke tengah.
+  // Kiri menghadap +x (ry = PI/2), kanan menghadap -x (ry = -PI/2).
+  // Urutan kiri: GrahaOS, Hermes, SukiApps Web, Web Studio.
+  // Urutan kanan: Marketplace, Games, Bahari, SUKI GROUP.
+  productPanel(g, -6.2, -3.5, Math.PI / 2, PRODUCTS[0]);
+  productPanel(g, -6.2, -1.0, Math.PI / 2, PRODUCTS[1]);
+  productPanel(g, -6.2, 1.5, Math.PI / 2, PRODUCTS[2]);
+  productPanel(g, -6.2, 4.0, Math.PI / 2, PRODUCTS[3]);
+  productPanel(g, 6.2, -3.5, -Math.PI / 2, PRODUCTS[4]);
+  productPanel(g, 6.2, -1.0, -Math.PI / 2, PRODUCTS[5]);
+  productPanel(g, 6.2, 1.5, -Math.PI / 2, PRODUCTS[6]);
+  productPanel(g, 6.2, 4.0, -Math.PI / 2, PRODUCTS[7]);
+  // Garis pemandu emas di lantai galeri kiri/kanan
+  box(g, 0.08, 0.02, 9.5, C.gold, -6.2, 0.02, 0.25, { emissive: C.gold, emissiveIntensity: 0.5 });
+  box(g, 0.08, 0.02, 9.5, C.gold, 6.2, 0.02, 0.25, { emissive: C.gold, emissiveIntensity: 0.5 });
 }
 /* CO-WORKING — dari gambar 2 */
 {
@@ -498,7 +544,12 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   mouse.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(mouse, camera);
   const hit = raycaster.intersectObjects(scene.children, true)[0];
-  if (hit && hit.object.name) document.getElementById('meta').textContent = 'Kamu klik: ' + hit.object.name;
+  if (hit && hit.object.userData && hit.object.userData.product) {
+    document.getElementById('productInfo').textContent = hit.object.userData.product;
+    document.getElementById('meta').textContent = 'Kamu klik: ' + hit.object.name;
+  } else if (hit && hit.object.name) {
+    document.getElementById('meta').textContent = 'Kamu klik: ' + hit.object.name;
+  }
 });
 
 /* ---------- GLB opsional (v2.1: dinonaktifkan total) ---------- */
@@ -512,7 +563,7 @@ function animate() {
   requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera);
   frames++; const now = performance.now();
   if (now - lastFpsTime >= 1000) {
-    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v2 • Klik objek untuk info';
+    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v2.3 • Klik panel produk untuk info';
     frames = 0; lastFpsTime = now;
   }
 }
