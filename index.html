@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SukiOffice Virtual — Three.js v2.4</title>
+<title>SukiOffice Virtual — Three.js v3 Live</title>
 <!--
   SUKIOFFICE VIRTUAL v2 — implementasi dari 4 gambar referensi Three.js
   Lobby (3 angle) + Co-working + CEO + Meeting & Object Sheet.
@@ -43,6 +43,23 @@
   #panel.collapsed #panelBody { display: none; }
   #panel:not(.collapsed) #panelBody { max-height: 55vh; overflow-y: auto; padding-top: 6px; }
   #panel:not(.collapsed) { background: rgba(0,0,0,0.82); }
+  /* v3 Live: kartu profil, minimap, workspace, speech — semua overlay HTML,
+     bukan objek 3D, supaya bisa dibaca di HP portrait tanpa menutupi 3D lama. */
+  #profileCard { position: fixed; left: 10px; right: 10px; bottom: 52px; z-index: 20; background: rgba(10,25,28,0.92); color: #fff; border: 1px solid #0fa3a3; border-radius: 12px; padding: 12px; font-size: 13px; line-height: 1.45; max-width: 480px; display: none; }
+  #profileCard b { font-size: 15px; }
+  #profileCard button { border: 0; border-radius: 20px; padding: 8px 12px; cursor: pointer; background: #0fa3a3; color: #fff; font-weight: 700; font-size: 12px; margin: 6px 6px 0 0; }
+  #profileCard button.secondary { background: #fff; color: #111; }
+  #minimap { position: fixed; right: 10px; bottom: 52px; z-index: 15; background: rgba(0,0,0,0.70); color: #fff; border-radius: 12px; padding: 8px; font-size: 11px; width: 148px; }
+  #minimap .mrow { display: flex; gap: 4px; margin-top: 4px; }
+  #minimap .mroom { flex: 1; background: #223; border: 1px solid #0fa3a3; border-radius: 6px; padding: 5px 2px; text-align: center; cursor: pointer; font-size: 10px; }
+  #minimap .mroom.active { background: #0fa3a3; }
+  #minimap .mdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #e0a83c; margin-right: 2px; }
+  #workspace { position: fixed; inset: 0; z-index: 30; background: rgba(5,12,14,0.96); color: #fff; display: none; padding: 16px; overflow-y: auto; }
+  #workspace textarea { width: 100%; height: 180px; background: #111; color: #7fe8ec; border: 1px solid #0fa3a3; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 13px; }
+  #workspace button { border: 0; border-radius: 20px; padding: 8px 14px; cursor: pointer; background: #0fa3a3; color: #fff; font-weight: 700; margin-top: 8px; }
+  #fade { position: fixed; inset: 0; z-index: 40; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.35s; }
+  #speech { position: fixed; left: 10px; bottom: 52px; z-index: 19; background: #fff; color: #111; border-radius: 12px; padding: 8px 10px; font-size: 12px; max-width: 300px; display: none; }
+  @media (max-width: 480px) { #minimap { width: 128px; font-size: 10px; } #profileCard { bottom: 52px; } }
   #panel .btns { display: flex; flex-wrap: wrap; gap: 6px; }
   #panel button { border: 0; border-radius: 20px; padding: 7px 11px; cursor: pointer; background: #fff; color: #111; font-weight: 600; font-size: 12px; }
   #panel button.active { background: #0fa3a3; color: #fff; }
@@ -60,7 +77,7 @@
 </head>
 <body>
 <div id="panel" class="collapsed">
-  <div id="panelHead"><b>SukiOffice Virtual — v2.4</b><button id="panelToggle" type="button">☰ Menu</button></div>
+  <div id="panelHead"><b>SukiOffice Virtual — v3 Live</b><button id="panelToggle" type="button">☰ Menu</button></div>
   <div id="panelBody">
   <div class="desc" id="roomDesc">Lobby — Galeri Produk SUKI APPS: GrahaOS, Hermes, SukiApps Web, SUKI Web Studio, Marketplace, Games, Bahari, SUKI GROUP. Klik panel produk untuk detail.</div>
   <div class="desc" id="loadStatus">Memuat 3D... kalau 8 detik masih tulisan ini, berarti modul Three.js gagal dimuat.</div>
@@ -80,11 +97,36 @@
     <button class="view" onclick="setView('hero')">Angle: Hero</button>
     <button class="view" onclick="setView('detail')">Angle: Detail</button>
     <button class="view" onclick="setView('top')">Angle: Atas</button>
+    <button class="view" id="walkBtn" type="button">Mode Jalan (Desktop)</button>
   </div>
+  <div class="desc" id="liveStatus">Kantor Live: memuat avatar...</div>
   </div>
 </div>
 <div id="meta">FPS: -- • Klik objek untuk info</div>
 <div id="hint">Seret = putar • Cubit/scroll = zoom</div>
+<div id="fade"></div>
+<div id="speech"></div>
+<div id="profileCard">
+  <b id="pcName">Avatar Demo</b>
+  <div id="pcInfo" style="opacity:0.9"></div>
+  <div><button id="pcInvite" type="button">Undang ke Meeting 2</button><button id="pcClose" class="secondary" type="button">Tutup</button></div>
+</div>
+<div id="minimap">
+  <b>MiniMap — Kantor Live</b>
+  <div style="opacity:0.8">Ketuk avatar, lalu ketuk ruangan tujuan untuk teleport. (Drag di desktop, tap di HP.)</div>
+  <div class="mrow"><div class="mroom" data-miniroom="lobby">Lobby</div><div class="mroom" data-miniroom="coworking">Co-work</div><div class="mroom" data-miniroom="ceo">CEO</div></div>
+  <div class="mrow"><div class="mroom" data-miniroom="meeting1">Meet 1</div><div class="mroom" data-miniroom="meeting2">Meet 2</div><div class="mroom" data-miniroom="huddle">Huddle</div></div>
+  <div class="mrow"><div class="mroom" data-miniroom="kitchen">Kitchen</div><div class="mroom" data-miniroom="prayer">Prayer</div><div class="mroom" data-miniroom="restroom">WC</div></div>
+  <div id="miniAvatars" style="margin-top:6px"></div>
+  <div style="margin-top:6px"><label style="font-size:11px">File handoff: </label><select id="handoffFile" style="font-size:11px"><option>Desain-Landing.pdf</option><option>Brief-GrahaOS.docx</option><option>Video-Hermes.mp4</option></select> <button id="handoffBtn" type="button" style="border:0;border-radius:12px;padding:4px 8px;background:#c9a86a;font-weight:700;font-size:11px">Serahkan</button></div>
+</div>
+<div id="workspace">
+  <h2 style="margin:0 0 8px">Workspace View — Layar Virtual</h2>
+  <p style="opacity:0.85;font-size:13px">Ini layar simulasi, bukan laptop asli. Ketik di kotak bawah — teksmu muncul sebagai simulasi ketikan di layar kerja. Ketuk Tutup untuk kembali ke ruangan.</p>
+  <div style="background:#0b1f22;border:1px solid #0fa3a3;border-radius:8px;padding:12px;font-family:monospace;font-size:13px;min-height:90px" id="wsScreen">SUKI WEB STUDIO — Proyek hari ini: Landing GrahaOS, revisi hero, deploy Vercel.<br>Status: <span style="color:#7fe8ec">In progress</span></div>
+  <textarea id="wsInput" placeholder="Ketik di sini untuk simulasi mengetik di layar kerja..."></textarea>
+  <div><button id="wsClose" type="button">Tutup Workspace</button></div>
+</div>
 
 <script>
 // Skrip klasik ini JALAN walau modul Three.js gagal — jadi blank tidak lagi diam.
@@ -119,14 +161,26 @@ setTimeout(function () {
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+// v3: Three r160 sudah memenuhi syarat r134+. Sengaja TIDAK naik ke r18x di
+// v3.0 ini supaya OrbitControls / RoomEnvironment yang sudah teruji di v2.4
+// tidak berubah perilakunya di HP. PointerLock hanya untuk desktop (lihat
+// tombol Mode Jalan di bawah, disembunyikan di layar kecil via CSS inline
+// di panelBody). Cannon.js sengaja TIDAK dipakai penuh: tabrakan di v3
+// memakai AABB sederhana (batas ruangan + jarak meja) agar FPS HP tetap
+// 60 seperti v2.3; titik integrasi Cannon-es didokumentasikan di
+// instructions.md bila nanti butuh fisika rigid-body sungguhan.
 // v2.1: import yang tidak terpakai dihapus sengaja — RoundedBox, GLTFLoader,
 // DRACOLoader di v2 ikut diunduh walau tidak pernah dipanggil, dan itu menambah
 // titik gagal load. Sofa/kursi kini pakai BoxGeometry biasa (tetap terbaca).
 
 /* ---------- Scene / Camera / Renderer ---------- */
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xeef4f2);
-scene.fog = new THREE.FogExp2(0xeef4f2, 0.010);
+// v3 Live: dark mode default untuk scene (bukan hanya panel UI). Fog
+// dianimasikan halus di loop agar ruangan terasa hidup, bukan statis.
+scene.background = new THREE.Color(0x0f1a1e);
+scene.fog = new THREE.FogExp2(0x0f1a1e, 0.012);
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(7, 3.5, 9);
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
@@ -138,6 +192,12 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 document.body.appendChild(renderer.domElement);
+// v3: environmental mapping tanpa file HDR eksternal — RoomEnvironment
+// + PMREM memberi pantulan PBR yang konsisten di semua material.
+try {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+} catch (e) { console.warn('Env map gagal, lanjut tanpa env:', e); }
 window.__suki3dStarted = true;
 document.getElementById('loadStatus').textContent = '3D jalan — seret layar untuk memutar ruangan.';
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -543,6 +603,209 @@ for (const k of Object.keys(descs)) rooms[k] = new THREE.Group();
 }
 for (const g of Object.values(rooms)) scene.add(g);
 
+/* ---------- v3 Live: EmployeeManager (avatar prosedural) ---------- */
+/* JUJUR: avatar di v3.0 ini BUKAN model manusia GLTF asli dari Blender dan
+   BUKAN 12 karyawan nyata SukiApps. Ini 12 persona demo prosedural (kotak/
+   kapsul + animasi prosedural) supaya kantor terasa hidup di HP tanpa
+   mengunduh model berat dan tanpa mengklaim orang nyata. Ganti roster di
+   bawah dengan tim nyata + file GLTF (lihat instructions.md) bila sudah ada.
+   Roster disimpan di localStorage (bukan IndexedDB — JSON-nya kecil, <2KB;
+   IndexedDB baru masuk akal bila ada aset GLTF besar yang di-cache). */
+const EMPLOYEE_ROSTER = [
+  { id: 'e01', name: 'Suki', role: 'Founder / CEO', shirt: 0x0fa3a3, skin: 0xf2c9a0, room: 'ceo', activity: 'typing', phrase: 'GrahaOS sprint hari ini fokus ke dashboard tenant ya.' },
+  { id: 'e02', name: 'Raka', role: 'Product Lead', shirt: 0x2b4a7a, skin: 0xe8b0d0, room: 'coworking', activity: 'typing', phrase: 'Backlog minggu ini: landing GrahaOS, revisi hero, deploy.' },
+  { id: 'e03', name: 'Sinta', role: 'UI Designer', shirt: 0xc9a86a, skin: 0xf2c9a0, room: 'coworking', activity: 'typing', phrase: 'Desain panel produk Lobby sudah saya rapikan, cek ya.' },
+  { id: 'e04', name: 'Budi', role: 'Frontend Dev', shirt: 0x3a3a3a, skin: 0xc9a87a, room: 'coworking', activity: 'typing', phrase: 'Three.js v3 sudah jalan 60 FPS di HP, lanjut ke avatar.' },
+  { id: 'e05', name: 'Dewi', role: 'Backend Dev', shirt: 0x2f6f6a, skin: 0xe8b0d0, room: 'meeting2', activity: 'meeting', phrase: 'API Supabase untuk GrahaOS sudah saya kunci skemanya.' },
+  { id: 'e06', name: 'Ana', role: 'QA Engineer', shirt: 0x7a2a2a, skin: 0xf2c9a0, room: 'meeting1', activity: 'meeting', phrase: 'Saya sudah uji semua tombol ruangan, tidak ada yang blank lagi.' },
+  { id: 'e07', name: 'Fajar', role: 'Marketing', shirt: 0xe0a83c, skin: 0xc9a87a, room: 'lobby', activity: 'idle', phrase: 'Selamat datang di SukiOffice! Mau lihat GrahaOS atau Hermes?' },
+  { id: 'e08', name: 'Maya', role: 'Content Creator', shirt: 0xff9ecb, skin: 0xe8b0d0, room: 'huddle', activity: 'meeting', phrase: 'Konten Suki Studio minggu ini: 3 posting, 1 reels.' },
+  { id: 'e09', name: 'Rudi', role: 'Sales', shirt: 0x1d2b4a, skin: 0xc9a87a, room: 'lobby', activity: 'idle', phrase: 'Paket Web Studio paling laris: Company Rp299rb.' },
+  { id: 'e10', name: 'Nadia', role: 'Customer Support', shirt: 0x0fa3a3, skin: 0xf2c9a0, room: 'kitchen', activity: 'coffee', phrase: 'Kopi dulu, habis itu balas chat pelanggan.' },
+  { id: 'e11', name: 'Ilham', role: 'DevOps', shirt: 0x3a3a3a, skin: 0xc9a87a, room: 'coworking', activity: 'typing', phrase: 'Deploy Vercel hari ini bersih, tidak ada build ERROR.' },
+  { id: 'e12', name: 'Putri', role: 'Intern Desain', shirt: 0xa8d8b0, skin: 0xe8b0d0, room: 'prayer', activity: 'prayer', phrase: 'Saya jeda sebentar untuk doa, habis itu lanjut desain.' },
+];
+const ROOM_SPOTS = {
+  lobby: [[-2, 1], [2, 1], [0, 3]], coworking: [[-2.2, -1.5], [0, -1.5], [2.2, 1.5]], ceo: [[-0.6, 1.6], [1, 0.5]],
+  meeting1: [[-1.5, 0], [1.5, 0]], meeting2: [[-1, -1.4], [1, 1.4]], huddle: [[-1, 0], [1, 0]],
+  kitchen: [[0, -1], [1.5, 0.5]], prayer: [[0, -1.5], [2.2, -1.5]], restroom: [[0, 0]],
+};
+const roomLights = {};
+for (const k of Object.keys(rooms)) {
+  const pl = new THREE.PointLight(0x7fe8ec, 0.35, 12);
+  pl.position.set(0, 3.2, 0); rooms[k].add(pl); roomLights[k] = pl;
+}
+function nameTagTex(name) {
+  return canvasTex(256, 64, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, 256, 64);
+    ctx.fillStyle = '#7fe8ec'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(name, 128, 42);
+  });
+}
+function buildAvatar(p) {
+  const g = new THREE.Group();
+  const legL = new THREE.Group(), legR = new THREE.Group();
+  legL.position.set(-0.14, 0.55, 0); legR.position.set(0.14, 0.55, 0);
+  const legGeo = new THREE.BoxGeometry(0.16, 0.55, 0.16);
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x2b3440 });
+  legL.add(new THREE.Mesh(legGeo, legMat)); legL.children[0].position.y = -0.27;
+  legR.add(new THREE.Mesh(legGeo, legMat)); legR.children[0].position.y = -0.27;
+  g.add(legL, legR);
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.62, 0.28), new THREE.MeshStandardMaterial({ color: p.shirt }));
+  torso.position.y = 0.86; torso.castShadow = true; g.add(torso);
+  const armL = new THREE.Group(), armR = new THREE.Group();
+  armL.position.set(-0.32, 1.12, 0); armR.position.set(0.32, 1.12, 0);
+  const armGeo = new THREE.BoxGeometry(0.13, 0.5, 0.13);
+  const armMat = new THREE.MeshStandardMaterial({ color: p.shirt });
+  armL.add(new THREE.Mesh(armGeo, armMat)); armL.children[0].position.y = -0.22;
+  armR.add(new THREE.Mesh(armGeo, armMat)); armR.children[0].position.y = -0.22;
+  g.add(armL, armR);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 16, 12), new THREE.MeshStandardMaterial({ color: p.skin }));
+  head.position.y = 1.38; head.castShadow = true; g.add(head);
+  const hair = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.34), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+  hair.position.y = 1.54; g.add(hair);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.28), new THREE.MeshBasicMaterial({ map: nameTagTex(p.name), transparent: true, side: THREE.DoubleSide }));
+  tag.position.y = 1.85; g.add(tag);
+  g.userData.employeeId = p.id;
+  g.traverse((o) => { o.userData.employeeId = p.id; });
+  return { group: g, legL, legR, armL, armR, torso, head, tag };
+}
+let savedLive = {};
+try { savedLive = JSON.parse(localStorage.getItem('sukioffice-live-v3') || '{}'); } catch (e) { savedLive = {}; }
+const employees = EMPLOYEE_ROSTER.map((p, idx) => {
+  const s = savedLive[p.id] || {};
+  const room = s.room && rooms[s.room] ? s.room : p.room;
+  const activity = s.activity || p.activity;
+  const spot = ROOM_SPOTS[room][idx % ROOM_SPOTS[room].length];
+  const built = buildAvatar(p);
+  built.group.position.set(s.x ?? spot[0], 0, s.z ?? spot[1]);
+  built.group.rotation.y = Math.PI;
+  rooms[room].add(built.group);
+  return { ...p, room, activity, built, target: null, nextChange: performance.now() + 20000 + idx * 3000, phase: idx * 1.3 };
+});
+function saveLive() {
+  const out = {};
+  employees.forEach((e) => { out[e.id] = { room: e.room, activity: e.activity, x: Math.round(e.built.group.position.x * 10) / 10, z: Math.round(e.built.group.position.z * 10) / 10 }; });
+  try { localStorage.setItem('sukioffice-live-v3', JSON.stringify(out)); } catch (e) {}
+}
+function moveEmployeeToRoom(e, room, fade = true) {
+  const doMove = () => {
+    rooms[e.room].remove(e.built.group);
+    e.room = room;
+    const spot = ROOM_SPOTS[room][0];
+    e.built.group.position.set(spot[0], 0, spot[1]);
+    rooms[room].add(e.built.group);
+    e.activity = room === 'meeting2' || room === 'meeting1' || room === 'huddle' ? 'meeting' : (room === 'kitchen' ? 'coffee' : (room === 'prayer' ? 'prayer' : 'typing'));
+    e.target = null; saveLive(); refreshMinimap(); showRoom(room);
+  };
+  if (fade) {
+    const f = document.getElementById('fade'); f.style.opacity = '1';
+    setTimeout(() => { doMove(); f.style.opacity = '0'; }, 380);
+  } else doMove();
+}
+let selectedEmployee = employees[0];
+function refreshMinimap() {
+  const el = document.getElementById('miniAvatars');
+  if (!el) return;
+  el.innerHTML = employees.map((e) => `<span data-emp="${e.id}" style="cursor:pointer;${selectedEmployee && selectedEmployee.id === e.id ? 'font-weight:800;color:#e0a83c' : ''}"><span class="mdot"></span>${e.name} (${e.room})</span> `).join('');
+  el.querySelectorAll('[data-emp]').forEach((n) => n.addEventListener('click', () => {
+    selectedEmployee = employees.find((x) => x.id === n.dataset.emp);
+    refreshMinimap();
+    document.getElementById('liveStatus').textContent = 'Dipilih: ' + selectedEmployee.name + ' — ' + selectedEmployee.role + ' di ' + selectedEmployee.room + '. Sekarang ketuk ruangan tujuan di MiniMap.';
+  }));
+  document.querySelectorAll('[data-miniroom]').forEach((n) => {
+    n.classList.toggle('active', n.dataset.miniroom === currentRoom);
+    n.onclick = () => {
+      if (selectedEmployee) moveEmployeeToRoom(selectedEmployee, n.dataset.miniroom, true);
+      else showRoom(n.dataset.miniroom);
+    };
+  });
+}
+function showEmployeeProfile(e) {
+  document.getElementById('pcName').textContent = e.name + ' — ' + e.role + ' (Avatar Demo)';
+  document.getElementById('pcInfo').textContent = 'Ruangan: ' + e.room + ' • Aktivitas: ' + e.activity + ' • ' + e.phrase;
+  document.getElementById('profileCard').style.display = 'block';
+  const sp = document.getElementById('speech'); sp.textContent = '💬 ' + e.name + ': "' + e.phrase + '"'; sp.style.display = 'block';
+  setTimeout(() => { sp.style.display = 'none'; }, 5000);
+}
+document.getElementById('pcClose').addEventListener('click', () => { document.getElementById('profileCard').style.display = 'none'; });
+document.getElementById('pcInvite').addEventListener('click', () => {
+  if (selectedEmployee) moveEmployeeToRoom(selectedEmployee, 'meeting2', true);
+  document.getElementById('profileCard').style.display = 'none';
+});
+document.getElementById('handoffBtn').addEventListener('click', () => {
+  const file = document.getElementById('handoffFile').value;
+  const tgt = selectedEmployee || employees[0];
+  document.getElementById('liveStatus').textContent = 'Handoff (simulasi): ' + file + ' diserahkan ke ' + tgt.name + ' di ' + tgt.room + '. ' + tgt.name + ' menjawab: "Diterima, saya kerjakan."';
+  const sp = document.getElementById('speech'); sp.textContent = '📁 ' + tgt.name + ': "Diterima ' + file + ', saya kerjakan."'; sp.style.display = 'block';
+  setTimeout(() => { sp.style.display = 'none'; }, 5000);
+});
+// Kitchen steam + prayer timer (mesh sederhana, dianimasikan di loop)
+const steam = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, side: THREE.DoubleSide }));
+steam.position.set(1.5, 1.8, -2.1); rooms.kitchen.add(steam);
+let prayerSeconds = 180;
+function updateEmployees(t, dt) {
+  const now = performance.now();
+  employees.forEach((e) => {
+    const vis = e.room === currentRoom;
+    e.built.group.visible = vis;
+    if (!vis) return;
+    const b = e.built;
+    b.tag.lookAt(camera.position);
+    const ph = t + e.phase;
+    if (e.activity === 'typing') {
+      b.armL.rotation.x = -0.9 + Math.sin(ph * 12) * 0.08; b.armR.rotation.x = -0.9 + Math.cos(ph * 12) * 0.08;
+      b.head.rotation.x = 0.25; b.torso.rotation.x = 0.08; b.legL.rotation.x = 0; b.legR.rotation.x = 0;
+    } else if (e.activity === 'meeting') {
+      b.head.rotation.y = Math.sin(ph * 0.8) * 0.3; b.head.rotation.x = 0.12 + Math.sin(ph * 1.7) * 0.06;
+      b.armL.rotation.x = -0.4; b.armR.rotation.x = -0.4; b.torso.rotation.x = 0.12;
+    } else if (e.activity === 'coffee') {
+      b.armR.rotation.x = -1.6 + Math.sin(ph * 1.2) * 0.25; b.armL.rotation.x = -0.2; b.head.rotation.x = -0.1;
+    } else if (e.activity === 'prayer') {
+      const bow = Math.max(0, Math.sin(ph * 0.5)) * 0.55;
+      b.torso.rotation.x = bow; b.head.rotation.x = bow; b.armL.rotation.x = 0; b.armR.rotation.x = 0;
+    } else if (e.activity === 'walking' && e.target) {
+      const dx = e.target[0] - b.group.position.x, dz = e.target[1] - b.group.position.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.15) { e.activity = 'typing'; e.target = null; saveLive(); }
+      else {
+        const sp = 1.1 * dt;
+        b.group.position.x += (dx / d) * sp; b.group.position.z += (dz / d) * sp;
+        b.group.rotation.y = Math.atan2(dx, dz);
+        b.legL.rotation.x = Math.sin(ph * 9) * 0.6; b.legR.rotation.x = -Math.sin(ph * 9) * 0.6;
+        b.armL.rotation.x = -Math.sin(ph * 9) * 0.4; b.armR.rotation.x = Math.sin(ph * 9) * 0.4;
+      }
+    } else {
+      // idle: napas halus + sesekali stretching (angkat kedua tangan)
+      const stretch = Math.sin(ph * 0.4) > 0.92 ? -2.4 : -0.15;
+      b.armL.rotation.x = stretch; b.armR.rotation.x = stretch;
+      b.torso.position.y = 0.86 + Math.sin(ph * 1.8) * 0.01; b.head.rotation.y = Math.sin(ph * 0.6) * 0.4;
+      b.legL.rotation.x = 0; b.legR.rotation.x = 0;
+    }
+    // Perilaku persisten: ganti aktivitas/ruangan secara berkala (demo)
+    if (now > e.nextChange) {
+      e.nextChange = now + 25000 + Math.random() * 20000;
+      const acts = ['typing', 'idle', 'meeting', 'coffee'];
+      e.activity = acts[Math.floor(Math.random() * acts.length)];
+      const spot = ROOM_SPOTS[e.room][Math.floor(Math.random() * ROOM_SPOTS[e.room].length)];
+      e.target = spot; e.activity = 'walking';
+      saveLive();
+    }
+  });
+  // Lampu ruangan menyala lebih terang saat ada penghuni (masuk/keluar)
+  for (const k of Object.keys(rooms)) {
+    const occ = employees.filter((e) => e.room === k).length;
+    roomLights[k].intensity = 0.25 + Math.min(occ, 4) * 0.18;
+  }
+  steam.material.opacity = 0.12 + Math.abs(Math.sin(t * 2)) * 0.12;
+  steam.position.y = 1.8 + Math.sin(t * 2) * 0.08;
+  prayerSeconds -= dt; if (prayerSeconds < 0) prayerSeconds = 180;
+  const mm = String(Math.floor(prayerSeconds / 60)).padStart(2, '0'), ss = String(Math.floor(prayerSeconds % 60)).padStart(2, '0');
+  const ls = document.getElementById('liveStatus');
+  if (ls && !ls.textContent.startsWith('Dipilih:') && !ls.textContent.startsWith('Handoff')) {
+    ls.textContent = 'Kantor Live: ' + employees.filter((e) => e.room === currentRoom).length + ' avatar di ruangan ini, ' + employees.length + ' total roster demo. Timer doa (demo, Prayer Room): ' + mm + ':' + ss + ' tersisa.';
+  }
+}
+
 /* ---------- Ganti ruangan + angle ---------- */
 let currentRoom = 'lobby';
 window.showRoom = (name) => {
@@ -554,6 +817,7 @@ window.showRoom = (name) => {
   camera.position.set(...c[0]); controls.target.set(...c[1]);
   // v2.4: habis pilih ruangan, panel otomatis terlipat supaya 3D terlihat penuh.
   if (window.setPanel) window.setPanel(false);
+  if (typeof refreshMinimap === 'function') refreshMinimap();
 };
 window.setView = (v) => {
   const base = cams[currentRoom][0]; const tgt = cams[currentRoom][1];
@@ -566,19 +830,42 @@ showRoom('lobby');
 
 /* ---------- Klik objek ---------- */
 const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2();
+const pointerRing = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.03, 8, 24), new THREE.MeshBasicMaterial({ color: 0x0fa3a3 }));
+pointerRing.rotation.x = -Math.PI / 2; pointerRing.position.y = 0.02; pointerRing.raycast = () => {}; scene.add(pointerRing);
+renderer.domElement.addEventListener('pointermove', (e) => {
+  mouse.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(mouse, camera);
+  const floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const pt = new THREE.Vector3();
+  if (raycaster.ray.intersectPlane(floor, pt)) pointerRing.position.set(pt.x, 0.02, pt.z);
+});
 renderer.domElement.addEventListener('pointerdown', (e) => {
   mouse.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(mouse, camera);
   const hit = raycaster.intersectObjects(scene.children, true)[0];
-  if (hit && hit.object.userData && hit.object.userData.product) {
+  if (!hit) return;
+  // 1) Avatar dulu: telusuri parent sampai ketemu employeeId
+  let node = hit.object, empId = null;
+  while (node) { if (node.userData && node.userData.employeeId) { empId = node.userData.employeeId; break; } node = node.parent; }
+  if (empId) {
+    const emp = employees.find((x) => x.id === empId);
+    if (emp) { selectedEmployee = emp; refreshMinimap(); showEmployeeProfile(emp); }
+    return;
+  }
+  if (hit.object.userData && hit.object.userData.product) {
     document.getElementById('productInfo').textContent = hit.object.userData.product;
     document.getElementById('meta').textContent = 'Kamu klik: ' + hit.object.name;
-    // v2.4: info produk dibaca di panel, jadi panel dibuka otomatis saat
-    // produk diklik; pengguna bisa melipat lagi dengan tombol Tutup.
     if (window.setPanel) window.setPanel(true);
-  } else if (hit && hit.object.name) {
+  } else if (hit.object.name && (hit.object.name.includes('Laptop') || hit.object.name.includes('Meja'))) {
+    document.getElementById('wsScreen').innerHTML = 'Workspace: ' + hit.object.name + '<br>SUKI WEB STUDIO — Proyek hari ini: Landing GrahaOS, revisi hero, deploy Vercel.<br>Status: <span style="color:#7fe8ec">In progress</span>';
+    document.getElementById('workspace').style.display = 'block';
+  } else if (hit.object.name) {
     document.getElementById('meta').textContent = 'Kamu klik: ' + hit.object.name;
   }
+});
+document.getElementById('wsClose').addEventListener('click', () => { document.getElementById('workspace').style.display = 'none'; });
+document.getElementById('wsInput').addEventListener('input', (e) => {
+  document.getElementById('wsScreen').innerHTML = 'Ketik (simulasi):<br>' + e.target.value.replace(/</g, '&lt;').replace(/\n/g, '<br>');
 });
 
 /* ---------- GLB opsional (v2.1: dinonaktifkan total) ---------- */
@@ -586,13 +873,40 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
 // models/SO_*.glb benar-benar sudah ada. Di v2.1 ini sengaja tidak ada
 // import GLTF/DRACO sama sekali, supaya tidak ada lagi titik gagal load.
 
+/* ---------- v3: Mode Jalan desktop (Pointer Lock, WASD) ---------- */
+/* Pointer Lock TIDAK bekerja di HP sentuh — jadi tombol ini hanya berguna
+   di desktop. Di HP, cara "berjalan" adalah tombol ruangan + MiniMap
+   teleport, yang sudah dites di A76. */
+const plc = new PointerLockControls(camera, renderer.domElement);
+const keys = {};
+window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+document.getElementById('walkBtn').addEventListener('click', () => {
+  if (window.innerWidth < 768) { alert('Mode Jalan Pointer Lock hanya untuk desktop dengan mouse + keyboard. Di HP, pakai tombol ruangan / MiniMap teleport.'); return; }
+  controls.enabled = false; plc.lock();
+});
+plc.addEventListener('unlock', () => { controls.enabled = true; controls.target.set(camera.position.x, 1.2, camera.position.z - 2); });
 /* ---------- Loop / FPS / Resize ---------- */
-let frames = 0, lastFpsTime = performance.now();
+let frames = 0, lastFpsTime = performance.now(), lastT = performance.now();
 function animate() {
-  requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+  const nowMs = performance.now(), dt = Math.min((nowMs - lastT) / 1000, 0.05), t = nowMs / 1000; lastT = nowMs;
+  if (plc.isLocked) {
+    const sp = 3.2 * dt;
+    if (keys.KeyW) plc.moveForward(sp); if (keys.KeyS) plc.moveForward(-sp);
+    if (keys.KeyA) plc.moveRight(-sp); if (keys.KeyD) plc.moveRight(sp);
+    // Tabrakan sederhana: clamp ke batas ruangan, bukan Cannon penuh
+    camera.position.x = Math.max(-7, Math.min(7, camera.position.x));
+    camera.position.z = Math.max(-5, Math.min(5, camera.position.z));
+    camera.position.y = 1.7;
+  } else controls.update();
+  updateEmployees(t, dt);
+  // Fog dinamis halus + god rays (lightShaft) tetap dari v2
+  scene.fog.density = 0.012 + Math.sin(t * 0.2) * 0.002;
+  renderer.render(scene, camera);
   frames++; const now = performance.now();
   if (now - lastFpsTime >= 1000) {
-    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v2.4 • Klik panel produk untuk info';
+    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v3 Live • Klik avatar untuk profil';
     frames = 0; lastFpsTime = now;
   }
 }
