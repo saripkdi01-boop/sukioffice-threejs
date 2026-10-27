@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SukiOffice Virtual — Three.js v3.2 Ruang Logic</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<title>SukiOffice Virtual — Three.js v3.3 Optimalisasi</title>
 <!--
   SUKIOFFICE VIRTUAL v2 — implementasi dari 4 gambar referensi Three.js
   Lobby (3 angle) + Co-working + CEO + Meeting & Object Sheet.
@@ -95,7 +96,7 @@
 </head>
 <body>
 <div id="panel" class="collapsed">
-  <div id="panelHead"><b>SukiOffice Virtual — v3.2</b><button id="panelToggle" type="button">☰ Menu</button></div>
+  <div id="panelHead"><b>SukiOffice Virtual — v3.3</b><button id="panelToggle" type="button">☰ Menu</button></div>
   <div id="hud" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:11px"><span id="hudCrew">👥 Crew: —</span><span id="hudTasks">📋 Tugas jalan: —</span><span id="hudBlocked">🚧 Blocked: —</span><span id="hudView">🗺️ 3D</span><span id="hudTheme">🌙 Malam</span></div>
   <div id="panelBody">
   <div class="desc" id="roomDesc">Lobby — Galeri Produk SUKI APPS: GrahaOS, Hermes, SukiApps Web, SUKI Web Studio, Marketplace, Games, Bahari, SUKI GROUP. Klik panel produk untuk detail.</div>
@@ -252,7 +253,7 @@ const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerH
 camera.position.set(7, 3.5, 9);
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+let dprLevel = Math.min(window.devicePixelRatio, 1.5); const DPR_MAX = dprLevel; renderer.setPixelRatio(dprLevel);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -281,41 +282,56 @@ scene.add(sun);
 
 /* ---------- Helpers & palette ---------- */
 const C = { teal: 0x0fa3a3, tealDark: 0x2f6f6a, gold: 0xc9a86a, walnut: 0x6b4a2f, walnutDark: 0x4a3220, oak: 0xd9b98a, white: 0xffffff, grey: 0x3a3a3a, greyLight: 0x9aa0a0, mustard: 0xe0a83c, navy: 0x1d2b4a, blue: 0x2b4a7a };
+// v3.3: cache geometri + material — satu Box/Cylinder/Sphere/Plane per dimensi
+// dan satu material per kombinasi warna/sifat, dipakai semua mesh yang identik.
+// Nol ubah visual (yang di-cache persis sama); yang dipangkas hanya alokasi,
+// memori GPU, dan pergantian state. Satu-satunya material yang dimutasi
+// per-frame (steam) sengaja TIDAK lewat cache ini.
+const __geoCache = new Map(), __matCache = new Map();
+function geoBox(w, h, d) { const k = 'b|' + w + '|' + h + '|' + d; let g = __geoCache.get(k); if (!g) { g = new THREE.BoxGeometry(w, h, d); __geoCache.set(k, g); } return g; }
+function geoCyl(rt, rb, h, seg) { const k = 'c|' + rt + '|' + rb + '|' + h + '|' + seg; let g = __geoCache.get(k); if (!g) { g = new THREE.CylinderGeometry(rt, rb, h, seg); __geoCache.set(k, g); } return g; }
+function geoSphere(r, ws, hs) { const k = 's|' + r + '|' + ws + '|' + hs; let g = __geoCache.get(k); if (!g) { g = new THREE.SphereGeometry(r, ws, hs); __geoCache.set(k, g); } return g; }
+function geoPlane(w, h) { const k = 'p|' + w + '|' + h; let g = __geoCache.get(k); if (!g) { g = new THREE.PlaneGeometry(w, h); __geoCache.set(k, g); } return g; }
 function mat(color, o = {}) {
-  const m = new THREE.MeshStandardMaterial({ color, roughness: o.roughness ?? 0.8, metalness: o.metalness ?? 0.1, transparent: !!o.transparent, opacity: o.opacity ?? 1 });
-  if (o.emissive) { m.emissive = new THREE.Color(o.emissive); m.emissiveIntensity = o.emissiveIntensity ?? 1.2; }
+  const k = [color, o.roughness ?? 0.8, o.metalness ?? 0.1, !!o.transparent, o.opacity ?? 1, o.emissive || '', o.emissiveIntensity ?? 1.2].join('|');
+  let m = __matCache.get(k);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ color, roughness: o.roughness ?? 0.8, metalness: o.metalness ?? 0.1, transparent: !!o.transparent, opacity: o.opacity ?? 1 });
+    if (o.emissive) { m.emissive = new THREE.Color(o.emissive); m.emissiveIntensity = o.emissiveIntensity ?? 1.2; }
+    __matCache.set(k, m);
+  }
   return m;
 }
 function box(g, w, h, d, color, x, y, z, o = {}) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, o));
+  const m = new THREE.Mesh(geoBox(w, h, d), mat(color, o));
   m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry;
-  m.castShadow = true; m.receiveShadow = true; if (o.name) m.name = o.name; g.add(m); return m;
+  m.castShadow = o.castShadow !== false; m.receiveShadow = o.receiveShadow !== false; if (o.name) m.name = o.name; g.add(m); return m;
 }
 function rbox(g, w, h, d, color, x, y, z, o = {}) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, o));
+  const m = new THREE.Mesh(geoBox(w, h, d), mat(color, o));
   m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry;
-  m.castShadow = true; m.receiveShadow = true; if (o.name) m.name = o.name; g.add(m); return m;
+  m.castShadow = o.castShadow !== false; m.receiveShadow = o.receiveShadow !== false; if (o.name) m.name = o.name; g.add(m); return m;
 }
 function cyl(g, rt, rb, h, color, x, y, z, o = {}) {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, o.seg ?? 20), mat(color, o));
+  const m = new THREE.Mesh(geoCyl(rt, rb, h, o.seg ?? 20), mat(color, o));
   m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry;
-  m.castShadow = true; m.receiveShadow = true; if (o.name) m.name = o.name; g.add(m); return m;
+  m.castShadow = o.castShadow !== false; m.receiveShadow = o.receiveShadow !== false; if (o.name) m.name = o.name; g.add(m); return m;
 }
 function planeTex(g, w, h, tex, x, y, z, o = {}) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: !!o.transparent, opacity: o.opacity ?? 1, side: THREE.DoubleSide }));
+  const m = new THREE.Mesh(geoPlane(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: !!o.transparent, opacity: o.opacity ?? 1, side: THREE.DoubleSide }));
   m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry; if (o.name) m.name = o.name; g.add(m); return m;
 }
 function floorFor(g, color = 0xdfe8e5) {
-  const f = new THREE.Mesh(new THREE.PlaneGeometry(30, 20), mat(color, { roughness: 0.35 }));
+  const f = new THREE.Mesh(geoPlane(30, 20), mat(color, { roughness: 0.35 }));
   f.rotation.x = -Math.PI / 2; f.receiveShadow = true; g.add(f);
 }
 function backWall(g, color = 0xe8e2d6, z = -5) { box(g, 22, 6, 0.2, color, 0, 3, z); }
 function windowWall(g, z = -4.9) {
   // Kaca besar + frame gelap, seperti pintu kaca lobby & jendela coworking
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry(14, 4), mat(0xbfe3f0, { roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.55 }));
+  const glass = new THREE.Mesh(geoPlane(14, 4), mat(0xbfe3f0, { roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.55 }));
   glass.position.set(0, 2.2, z); g.add(glass);
-  for (let x = -6; x <= 6; x += 3) box(g, 0.15, 4, 0.15, C.grey, x, 2.2, z + 0.05);
-  box(g, 14, 0.15, 0.15, C.grey, 0, 4.2, z + 0.05);
+  for (let x = -6; x <= 6; x += 3) box(g, 0.15, 4, 0.15, C.grey, x, 2.2, z + 0.05, { castShadow: false });
+  box(g, 14, 0.15, 0.15, C.grey, 0, 4.2, z + 0.05, { castShadow: false });
 }
 function plant(g, x, z, s = 1) {
   cyl(g, 0.28 * s, 0.22 * s, 0.5 * s, 0x8a6b4a, x, 0.25 * s, z);
@@ -327,13 +343,13 @@ function plant(g, x, z, s = 1) {
 // terdefinisi, animate tidak pernah jalan, dan canvas tetap blank.
 function lightShaft(g, x, z) {
   const m = new THREE.Mesh(
-    new THREE.PlaneGeometry(4, 9),
+    geoPlane(4, 9),
     new THREE.MeshBasicMaterial({ color: 0xfff2cc, transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
   );
   m.position.set(x, 4.5, z); m.rotation.z = 0.5; m.rotation.y = 0.4; g.add(m);
 }
 function pendant(g, x, y, z) {
-  cyl(g, 0.02, 0.02, 1.4, C.grey, x, y + 0.7, z, { seg: 8 });
+  cyl(g, 0.02, 0.02, 1.4, C.grey, x, y + 0.7, z, { seg: 8, castShadow: false });
   cyl(g, 0.38, 0.48, 0.35, C.gold, x, y, z, { metalness: 0.6, roughness: 0.3, name: 'Lampu Gantung Emas' });
   cyl(g, 0.36, 0.36, 0.05, C.teal, x, y - 0.18, z, { emissive: C.teal, emissiveIntensity: 1.0 });
 }
@@ -723,29 +739,32 @@ function nameTagTex(name) {
     ctx.fillStyle = '#7fe8ec'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(name, 128, 42);
   });
 }
+// v3.3: bagian avatar yang konstan (kaki, rambut) dibagi semua avatar; geometri
+// dibagi semua avatar; material kemeja dibagi torso + kedua lengan (warna sama).
+const AV_LEG_MAT = new THREE.MeshStandardMaterial({ color: 0x2b3440 });
+const AV_HAIR_MAT = new THREE.MeshStandardMaterial({ color: 0x222222 });
 function buildAvatar(p) {
   const g = new THREE.Group();
   const legL = new THREE.Group(), legR = new THREE.Group();
   legL.position.set(-0.14, 0.55, 0); legR.position.set(0.14, 0.55, 0);
-  const legGeo = new THREE.BoxGeometry(0.16, 0.55, 0.16);
-  const legMat = new THREE.MeshStandardMaterial({ color: 0x2b3440 });
-  legL.add(new THREE.Mesh(legGeo, legMat)); legL.children[0].position.y = -0.27;
-  legR.add(new THREE.Mesh(legGeo, legMat)); legR.children[0].position.y = -0.27;
+  const legGeo = geoBox(0.16, 0.55, 0.16);
+  legL.add(new THREE.Mesh(legGeo, AV_LEG_MAT)); legL.children[0].position.y = -0.27;
+  legR.add(new THREE.Mesh(legGeo, AV_LEG_MAT)); legR.children[0].position.y = -0.27;
   g.add(legL, legR);
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.62, 0.28), new THREE.MeshStandardMaterial({ color: p.shirt }));
+  const shirtMat = new THREE.MeshStandardMaterial({ color: p.shirt });
+  const torso = new THREE.Mesh(geoBox(0.52, 0.62, 0.28), shirtMat);
   torso.position.y = 0.86; torso.castShadow = true; g.add(torso);
   const armL = new THREE.Group(), armR = new THREE.Group();
   armL.position.set(-0.32, 1.12, 0); armR.position.set(0.32, 1.12, 0);
-  const armGeo = new THREE.BoxGeometry(0.13, 0.5, 0.13);
-  const armMat = new THREE.MeshStandardMaterial({ color: p.shirt });
-  armL.add(new THREE.Mesh(armGeo, armMat)); armL.children[0].position.y = -0.22;
-  armR.add(new THREE.Mesh(armGeo, armMat)); armR.children[0].position.y = -0.22;
+  const armGeo = geoBox(0.13, 0.5, 0.13);
+  armL.add(new THREE.Mesh(armGeo, shirtMat)); armL.children[0].position.y = -0.22;
+  armR.add(new THREE.Mesh(armGeo, shirtMat)); armR.children[0].position.y = -0.22;
   g.add(armL, armR);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 16, 12), new THREE.MeshStandardMaterial({ color: p.skin }));
+  const head = new THREE.Mesh(geoSphere(0.19, 16, 12), new THREE.MeshStandardMaterial({ color: p.skin }));
   head.position.y = 1.38; head.castShadow = true; g.add(head);
-  const hair = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.34), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+  const hair = new THREE.Mesh(geoBox(0.34, 0.1, 0.34), AV_HAIR_MAT);
   hair.position.y = 1.54; g.add(hair);
-  const tag = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.28), new THREE.MeshBasicMaterial({ map: nameTagTex(p.name), transparent: true, side: THREE.DoubleSide }));
+  const tag = new THREE.Mesh(geoPlane(1.1, 0.28), new THREE.MeshBasicMaterial({ map: nameTagTex(p.name), transparent: true, side: THREE.DoubleSide }));
   tag.position.y = 1.85; g.add(tag);
   g.userData.employeeId = p.id;
   g.traverse((o) => { o.userData.employeeId = p.id; });
@@ -824,7 +843,7 @@ document.getElementById('handoffBtn').addEventListener('click', () => {
   setTimeout(() => { sp.style.display = 'none'; }, 5000);
 });
 // Kitchen steam + prayer timer (mesh sederhana, dianimasikan di loop)
-const steam = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, side: THREE.DoubleSide }));
+const steam = new THREE.Mesh(geoPlane(0.6, 0.8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, side: THREE.DoubleSide }));
 steam.position.set(1.5, 1.8, -2.1); rooms.kitchen.add(steam);
 let prayerSeconds = 180;
 function updateEmployees(t, dt) {
@@ -1213,7 +1232,7 @@ document.getElementById('walkBtn').addEventListener('click', () => {
 });
 plc.addEventListener('unlock', () => { controls.enabled = true; controls.target.set(camera.position.x, 1.2, camera.position.z - 2); });
 /* ---------- Loop / FPS / Resize ---------- */
-let frames = 0, lastFpsTime = performance.now(), lastT = performance.now();
+let frames = 0, lastFpsTime = performance.now(), lastT = performance.now(), lowStreak = 0, goodStreak = 0;
 function animate() {
   requestAnimationFrame(animate);
   const nowMs = performance.now(), dt = Math.min((nowMs - lastT) / 1000, 0.05), t = nowMs / 1000; lastT = nowMs;
@@ -1232,8 +1251,20 @@ function animate() {
   renderer.render(scene, camera);
   frames++; const now = performance.now();
   if (now - lastFpsTime >= 1000) {
-    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v3.2 • Klik avatar untuk profil';
+    const fps = frames;
+    document.getElementById('meta').textContent = 'FPS: ' + fps + ' • Draw calls: ' + renderer.info.render.calls + ' • v3.3 • Klik avatar untuk profil';
     if (typeof updateHUD === 'function') updateHUD();
+    // v3.3: penjaga FPS low-end — turunkan pixel ratio bila FPS loyo 3 detik
+    // berturut-turut, naikkan lagi bila pulih 10 detik (histeresis, anti osilasi).
+    // Tidak mengubah scene, hanya ketajaman render. Dilewati saat tab tersembunyi
+    // (rAF berhenti → FPS semu rendah) dan saat reduced-motion.
+    if (!reducedMotion && document.visibilityState === 'visible') {
+      if (fps < 45 && dprLevel > 1.0) {
+        if (++lowStreak >= 3) { dprLevel = dprLevel > 1.25 ? 1.25 : 1.0; renderer.setPixelRatio(dprLevel); renderer.setSize(window.innerWidth, window.innerHeight); console.info('[sukioffice] DPR → ' + dprLevel + ' (FPS ' + fps + ')'); lowStreak = 0; goodStreak = 0; }
+      } else if (fps > 55 && dprLevel < DPR_MAX) {
+        if (++goodStreak >= 10) { dprLevel = dprLevel < 1.25 ? 1.25 : DPR_MAX; renderer.setPixelRatio(dprLevel); renderer.setSize(window.innerWidth, window.innerHeight); console.info('[sukioffice] DPR → ' + dprLevel + ' (FPS ' + fps + ')'); goodStreak = 0; lowStreak = 0; }
+      } else { lowStreak = 0; goodStreak = 0; }
+    }
     frames = 0; lastFpsTime = now;
   }
 }

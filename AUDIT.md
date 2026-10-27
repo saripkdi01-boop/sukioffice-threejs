@@ -126,3 +126,38 @@ demo yang bergerak. Yang belum hidup: seluruh lapisan bisnis
 AI execution). v3.1 di bawah ini menutup satu celah itu secara
 jujur — task engine LOKAL dengan aturan transisi — tanpa
 berpura-pura menjadi backend produksi.
+
+# AUDIT v3.3 — Optimalisasi (cabang optimasi-v33)
+
+## Baseline statis v3.2 (dari file, terverifikasi)
+- `index.html` v3.2: 88.555 byte / 1.246 baris (HEAD 998038b).
+- Renderer: antialias off, pixelRatio min(dpr, 1.5), shadow PCFSoft 1024, 1 DirectionalLight (castShadow) + Hemisphere + PointLight per ruangan.
+- FAKTA KODE (bukan dugaan): `mat()` bikin material baru per mesh; `box()`/`cyl()` bikin geometri baru per mesh — TANPA sharing. `buildAvatar` bikin ulang geometri kaki/lengan/torso/kepala/rambut per avatar (12x).
+- Semua mesh `castShadow + receiveShadow` → shadow pass menggandakan draw calls ruangan aktif.
+- 9 ruangan + 12 avatar dibangun eager saat load (bukan lazy).
+- Yang sudah bagus: view per-ruangan (visible toggle), avatar ruangan lain di-skip dari animasi (`if (!vis) return`), fog murah, tanpa tekstur jaringan/HDR, 1 CanvasTexture helper, fallback tanpa WebGL, reduced-motion dihormati, state localStorage <2 KB.
+
+## Baseline live v3.2 (TERUKUR via browser, 27 Okt 11:19 WITA, Lobby)
+- Meta persis: "FPS: 6 • Draw calls: 138 • v3.2" lalu FPS 7, draw calls tetap 138.
+- 3D tampil penuh pada pemuatan tab pertama (tanpa penantian tambahan teramati; tanpa angka stopwatch persis — tidak dikarang).
+- Ruangan pertama: Lobby (tombol Lobby tersorot di MiniMap; area resepsionis/sofa; avatar Fajar + Rudi di lobby).
+- Error: NIHIL. Tidak ada teks error, tidak ada "Memuat 3D..." macet.
+- Panel lain saat itu: "👥 Crew aktif: 6/12", "📋 Tugas jalan: 1", "🚧 Blocked: 1".
+- CATATAN KEJUJURAN ANGKA: FPS 6–7 diukur di browser VM (kemungkinan software rendering tanpa GPU) — BUKAN angka FPS di HP pengguna. Jangan sajikan 6–7 sebagai "FPS situs untuk pengguna". Angka yang mesin-independen dan bisa dipakai sebagai baseline: **draw calls 138** (Lobby). FPS riil di HP (A76) tetap harus dari tes tap Suki — v2.3 dulu 60 FPS di A76, tapi itu v2.3, bukan v3.2.
+- Implikasi: 138 ≈ mesh terlihat Lobby × 2 (color pass + shadow pass). Shadow trim v3.3 (frame jendela + tali pendant) memangkas caster shadow pass; cache tidak mengubah jumlah call tapi memangkas memori/state; DPR adaptif menjaga FPS di GPU lemah.
+
+## Perubahan v3.3 (cabang optimasi-v33, syntax OK via node --check, +2.758 byte → 91.313 byte)
+1. Cache geometri (`geoBox/geoCyl/geoSphere/geoPlane`) + cache material (`mat()` keyed by warna/sifat) — semua helper + avatar pakai cache. Satu-satunya material yang dimutasi per-frame (steam) sengaja TIDAK di-cache.
+2. Shadow trim: frame jendela tipis + tali pendant (`castShadow: false`) — bayangannya tak terlihat di shadow map 1024. Furnitur + avatar tetap casting.
+3. DPR adaptif: FPS <45 selama 3 detik → turun 1.5 → 1.25 → 1.0; FPS >55 selama 10 detik → naik lagi (maks = DPR awal perangkat). Dilewati saat tab tersembunyi + reduced-motion. Log via console.info.
+4. Preconnect `cdn.jsdelivr.net` (CDN modul Three.js).
+5. Avatar: geometri dibagi semua avatar; material kaki + rambut dibagi (konstan); material kemeja dibagi torso + kedua lengan (warna sama).
+
+## TIDAK diubah (sesuai masterprompt)
+- Layout 9 ruangan, gaya visual (dark + teal, fog, light shaft), isi brand wall/galeri, semua fitur (profil, workspace, MiniMap, task engine lokal, CEO dashboard, kanban, denah 2D, tema siang/malam).
+- Fallback tanpa WebGL, reduced-motion, localStorage `sukioffice-live-v3`.
+- TANPA Phase 3 (backend/auth/DB — keputusan Suki menggantung), TANPA GLB manusia (T-006 blocked), TANPA Cannon.js, TANPA IndexedDB, TANPA audio langkah, TANPA shader cursor, TANPA drag file 3D.
+- TANPA deploy ke main — kerja di cabang, laporan sebelum/sesudah dulu, merge/deploy menunggu "gas" kedua Suki.
+
+## Verifikasi (menyusul setelah angka baseline datang)
+- Preview cabang via browser: FPS + draw calls panel, jalur tes HP (hard refresh → avatar → profil → teleport → workspace → reload persist), jalur tanpa WebGL (daftar tugas terbaca).
