@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SukiOffice Virtual — Three.js v3.1 Audit + Tasks</title>
+<title>SukiOffice Virtual — Three.js v3.2 Ruang Logic</title>
 <!--
   SUKIOFFICE VIRTUAL v2 — implementasi dari 4 gambar referensi Three.js
   Lobby (3 angle) + Co-working + CEO + Meeting & Object Sheet.
@@ -69,6 +69,15 @@
   #tasks button.secondary { background: #fff; color: #111; }
   .taskRow { border: 1px solid #244; border-radius: 10px; padding: 8px; margin: 6px 0; background: rgba(255,255,255,0.04); }
   #fallback { position: fixed; inset: 0; z-index: 50; background: #0f1a1e; color: #fff; display: none; padding: 16px; overflow-y: auto; font-size: 13px; line-height: 1.5; }
+  /* v3.2 Ruang Logic: Panel samping 3 tab + floorplan 2D (CSS only, tanpa aset) */
+  #ruangPanel { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 92vw); z-index: 26; background: rgba(10,25,28,0.97); color: #fff; display: none; padding: 14px; overflow-y: auto; font-size: 13px; line-height: 1.45; }
+  #ruangPanel button { border: 0; border-radius: 20px; padding: 7px 12px; cursor: pointer; background: #0fa3a3; color: #fff; font-weight: 700; font-size: 12px; margin: 4px 4px 0 0; }
+  #ruangPanel button.secondary { background: #fff; color: #111; }
+  #ruangPanel button.tabActive { background: #e0a83c; color: #111; }
+  .crewRow { border: 1px solid #244; border-radius: 10px; padding: 8px; margin: 6px 0; cursor: pointer; background: rgba(255,255,255,0.04); }
+  #floorplan { position: fixed; inset: 0; z-index: 5; background: #0f1a1e; color: #fff; display: none; padding: 70px 12px 12px; overflow-y: auto; }
+  .fpRoom { border: 1px solid #0fa3a3; border-radius: 12px; padding: 10px; margin: 8px 0; cursor: pointer; background: rgba(255,255,255,0.05); }
+  .fpRoom.active { background: rgba(15,163,163,0.25); }
   #panel .btns { display: flex; flex-wrap: wrap; gap: 6px; }
   #panel button { border: 0; border-radius: 20px; padding: 7px 11px; cursor: pointer; background: #fff; color: #111; font-weight: 600; font-size: 12px; }
   #panel button.active { background: #0fa3a3; color: #fff; }
@@ -86,7 +95,8 @@
 </head>
 <body>
 <div id="panel" class="collapsed">
-  <div id="panelHead"><b>SukiOffice Virtual — v3.1</b><button id="panelToggle" type="button">☰ Menu</button></div>
+  <div id="panelHead"><b>SukiOffice Virtual — v3.2</b><button id="panelToggle" type="button">☰ Menu</button></div>
+  <div id="hud" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:11px"><span id="hudCrew">👥 Crew: —</span><span id="hudTasks">📋 Tugas jalan: —</span><span id="hudBlocked">🚧 Blocked: —</span><span id="hudView">🗺️ 3D</span><span id="hudTheme">🌙 Malam</span></div>
   <div id="panelBody">
   <div class="desc" id="roomDesc">Lobby — Galeri Produk SUKI APPS: GrahaOS, Hermes, SukiApps Web, SUKI Web Studio, Marketplace, Games, Bahari, SUKI GROUP. Klik panel produk untuk detail.</div>
   <div class="desc" id="loadStatus">Memuat 3D... kalau 8 detik masih tulisan ini, berarti modul Three.js gagal dimuat.</div>
@@ -108,6 +118,10 @@
     <button class="view" onclick="setView('top')">Angle: Atas</button>
     <button class="view" id="walkBtn" type="button">Mode Jalan (Desktop)</button>
     <button class="view" id="tasksBtn" type="button">📋 Tugas &amp; CEO</button>
+    <button class="view" id="ruangBtn" type="button">🗂️ Panel Ruang</button>
+    <button class="view" id="themeBtn" type="button">🌙/☀️ Tema</button>
+    <button class="view" id="viewBtn" type="button">🗺️ 3D / 2D</button>
+    <button class="view" id="sleepBtn" type="button">💤 Tidur</button>
   </div>
   <div class="desc" style="opacity:0.7">Keyboard: 1–9 = ruangan, M = menu, T = tugas. Reduced-motion dihormati.</div>
   <div class="desc" id="liveStatus">Kantor Live: memuat avatar...</div>
@@ -149,8 +163,22 @@
     <button id="newTaskBtn" type="button">Buat (Backlog)</button>
   </div>
   <div id="taskMsg" style="margin-top:8px;color:#e0a83c"></div>
+  <div><button id="kanbanBtn" type="button">📋 Kanban (ala Ruang)</button><button id="listBtn" type="button" class="secondary">📄 List</button></div>
   <div id="taskList"></div>
   <div><button id="tasksClose" class="secondary" type="button">Tutup Tugas</button></div>
+</div>
+<div id="ruangPanel">
+  <h2 style="margin:0 0 6px">Panel — Gaya Ruang</h2>
+  <p style="opacity:0.85">Diadaptasi dari Ruang (MIT): satu panel, tiga tab, tanpa meninggalkan kantor. Data di sini adalah data lokal SukiOffice, bukan data server Hermes CLI.</p>
+  <div><button id="tabCrew" type="button" class="tabActive">Crew</button><button id="tabStats" type="button">Stats</button><button id="tabActivity" type="button">Activity</button><button id="ruangClose" class="secondary" type="button">✕ Tutup</button></div>
+  <div id="ruangCrew"></div>
+  <div id="ruangStats" style="display:none"></div>
+  <div id="ruangActivity" style="display:none"></div>
+</div>
+<div id="floorplan">
+  <h2 style="margin:0 0 6px">Denah 2D — SukiOffice (tanpa WebGL pun bisa)</h2>
+  <p style="opacity:0.85">Ketuk ruangan untuk masuk ke 3D-nya. Avatar yang tertera adalah posisi terakhir yang tersimpan di browser ini.</p>
+  <div id="fpRooms"></div>
 </div>
 <div id="workspace">
   <h2 style="margin:0 0 8px">Workspace View — Layar Virtual</h2>
@@ -459,6 +487,18 @@ for (const k of Object.keys(descs)) rooms[k] = new THREE.Group();
   // Garis pemandu emas di lantai galeri kiri/kanan
   box(g, 0.08, 0.02, 9.5, C.gold, -6.2, 0.02, 0.25, { emissive: C.gold, emissiveIntensity: 0.5 });
   box(g, 0.08, 0.02, 9.5, C.gold, 6.2, 0.02, 0.25, { emissive: C.gold, emissiveIntensity: 0.5 });
+  // Sentuhan Indonesia ala Ruang, diadaptasi (bukan disalin modelnya):
+  // Bendera Merah Putih di sudut halaman lobby, gerobak bakso + kopi keliling di sisi luar.
+  cyl(g, 0.05, 0.05, 3.2, 0xdddddd, -7.5, 1.6, 5.5, { seg: 10, name: 'Tiang Bendera' });
+  box(g, 1.1, 0.35, 0.03, 0xcc0000, -6.9, 2.9, 5.5, { name: 'Bendera Merah Putih' });
+  box(g, 1.1, 0.35, 0.03, 0xffffff, -6.9, 2.55, 5.5, { name: 'Bendera Merah Putih' });
+  box(g, 1.6, 0.9, 0.8, 0x2b3440, 7.5, 0.7, 5.0, { name: 'Gerobak Bakso' });
+  box(g, 1.7, 0.1, 0.9, C.oak, 7.5, 1.2, 5.0);
+  cyl(g, 0.3, 0.3, 0.1, 0x222222, 7.0, 0.3, 5.45, { seg: 12 });
+  cyl(g, 0.3, 0.3, 0.1, 0x222222, 8.0, 0.3, 5.45, { seg: 12 });
+  box(g, 0.9, 0.7, 0.5, 0xe0a83c, -7.5, 0.6, -4.0, { name: 'Sepeda Kopi Keliling' });
+  cyl(g, 0.28, 0.28, 0.08, 0x222222, -7.9, 0.28, -3.6, { seg: 12 });
+  cyl(g, 0.28, 0.28, 0.08, 0x222222, -7.1, 0.28, -3.6, { seg: 12 });
 }
 /* CO-WORKING — dari gambar 2 */
 {
@@ -612,6 +652,9 @@ for (const k of Object.keys(descs)) rooms[k] = new THREE.Group();
   box(g, 0.3, 0.4, 0.3, 0xffffff, 1.0, 1.2, -2.1);
   for (let i = -1; i <= 1; i++) { cyl(g, 0.28, 0.28, 0.08, C.oak, i * 1.4, 0.75, 0.5, { seg: 18, name: 'Kursi Bar' }); cyl(g, 0.05, 0.05, 0.7, C.grey, i * 1.4, 0.35, 0.5, { seg: 10 }); }
   box(g, 2.5, 0.08, 0.6, C.oak, 0, 1.8, -3.5, { name: 'Rak Dapur' });
+  // Galon pantry ala Ruang: dispenser + galon biru transparan
+  box(g, 0.5, 1.1, 0.5, 0xffffff, -2.2, 0.55, -2.2, { name: 'Dispenser Galon' });
+  cyl(g, 0.22, 0.22, 0.5, 0x7fb8e8, -2.2, 1.35, -2.2, { name: 'Galon Air' });
   plant(g, -3.5, -2);
 }
 /* PRAYER ROOM — dari object sheet */
@@ -734,7 +777,9 @@ function moveEmployeeToRoom(e, room, fade = true) {
     e.built.group.position.set(spot[0], 0, spot[1]);
     rooms[room].add(e.built.group);
     e.activity = room === 'meeting2' || room === 'meeting1' || room === 'huddle' ? 'meeting' : (room === 'kitchen' ? 'coffee' : (room === 'prayer' ? 'prayer' : 'typing'));
-    e.target = null; saveLive(); refreshMinimap(); showRoom(room);
+    e.target = null; saveLive(); refreshMinimap();
+    if (typeof logActivity === 'function') logActivity(e.name + ' pindah ke ' + room + ' (' + e.activity + ')');
+    showRoom(room);
   };
   if (fade) {
     const f = document.getElementById('fade'); f.style.opacity = '1';
@@ -803,9 +848,15 @@ function updateEmployees(t, dt) {
       const bow = Math.max(0, Math.sin(ph * 0.5)) * 0.55;
       b.torso.rotation.x = bow; b.head.rotation.x = bow; b.armL.rotation.x = 0; b.armR.rotation.x = 0;
     } else if (e.activity === 'walking' && e.target) {
-      const dx = e.target[0] - b.group.position.x, dz = e.target[1] - b.group.position.z;
+      // Logika Ruang: jalan lewat lorong (titik 0, 2.8) dulu, bukan garis
+      // lurus menembus meja. e.path = [lorong, tujuan akhir].
+      const wp = (e.path && e.path.length) ? e.path[0] : e.target;
+      const dx = wp[0] - b.group.position.x, dz = wp[1] - b.group.position.z;
       const d = Math.hypot(dx, dz);
-      if (d < 0.15) { e.activity = 'typing'; e.target = null; saveLive(); }
+      if (d < 0.15) {
+        if (e.path && e.path.length) e.path.shift();
+        if (!e.path || !e.path.length) { e.activity = 'typing'; e.target = null; saveLive(); }
+      }
       else {
         const sp = 1.1 * dt;
         b.group.position.x += (dx / d) * sp; b.group.position.z += (dz / d) * sp;
@@ -820,13 +871,32 @@ function updateEmployees(t, dt) {
       b.torso.position.y = 0.86 + Math.sin(ph * 1.8) * 0.01; b.head.rotation.y = Math.sin(ph * 0.6) * 0.4;
       b.legL.rotation.x = 0; b.legR.rotation.x = 0;
     }
-    // Perilaku persisten: ganti aktivitas/ruangan secara berkala (demo)
+    // Perilaku Ruang: idle wandering tiap ~32 detik ke stop yang jelas,
+    // bukan teleport diam-diam. Bila avatar tidak di ruangan yang dibuka,
+    // state-nya diubah diam-diam TANPA memindah view pengguna.
     if (now > e.nextChange) {
-      e.nextChange = now + 25000 + Math.random() * 20000;
-      const acts = ['typing', 'idle', 'meeting', 'coffee'];
-      e.activity = acts[Math.floor(Math.random() * acts.length)];
-      const spot = ROOM_SPOTS[e.room][Math.floor(Math.random() * ROOM_SPOTS[e.room].length)];
-      e.target = spot; e.activity = 'walking';
+      e.nextChange = now + 32000 + Math.random() * 8000;
+      if (typeof sleepMode !== 'undefined' && sleepMode && e.activity === 'idle') { saveLive(); return; }
+      const stops = [
+        { room: e.room, label: 'Lounge / sofa di ' + e.room },
+        { room: 'kitchen', label: 'Pantry / Galon' },
+        { room: 'lobby', label: 'Lounge Lobby' },
+      ];
+      const stop = stops[Math.floor(Math.random() * stops.length)];
+      if (stop.room !== e.room) {
+        // Pindah ruangan diam-diam (tanpa showRoom) bila bukan ruangan aktif
+        if (typeof rooms !== 'undefined' && rooms[stop.room]) {
+          rooms[e.room].remove(e.built.group); e.room = stop.room;
+          const s2 = ROOM_SPOTS[stop.room][0]; e.built.group.position.set(s2[0], 0, s2[1]); rooms[stop.room].add(e.built.group);
+          if (typeof logActivity === 'function') logActivity(e.name + ' wandering ke ' + stop.label);
+        }
+        e.activity = 'idle';
+      } else {
+        const spot = ROOM_SPOTS[e.room][Math.floor(Math.random() * ROOM_SPOTS[e.room].length)];
+        e.path = [[0, 2.8], spot]; e.target = spot; e.activity = 'walking';
+        if (typeof logActivity === 'function') logActivity(e.name + ' wandering ke ' + stop.label);
+        if (e.room === currentRoom) { const sp = document.getElementById('speech'); if (sp) { sp.textContent = '🚶 ' + e.name + ': "Menuju: ' + stop.label + '"'; sp.style.display = 'block'; setTimeout(() => { sp.style.display = 'none'; }, 4000); } }
+      }
       saveLive();
     }
   });
@@ -935,9 +1005,123 @@ document.getElementById('newTaskBtn').addEventListener('click', () => {
   tasks.push({ id: 'T-' + String(100 + n).slice(1), title, project: document.getElementById('newTaskProject').value, ownerId: document.getElementById('newTaskOwner').value, due: document.getElementById('newTaskDue').value, acceptance: false, blockedReason: '', status: 'Backlog' });
   document.getElementById('newTaskTitle').value = ''; saveTasks(); renderTasks();
 });
+document.getElementById('kanbanBtn').addEventListener('click', () => {
+  const order = ['Backlog', 'Ready', 'In Progress', 'In Review', 'Blocked', 'Awaiting Approval', 'Completed', 'Cancelled'];
+  document.getElementById('taskList').innerHTML = '<div style="display:flex;gap:8px;overflow-x:auto">' + order.map((s) => {
+    const cards = tasks.filter((t) => t.status === s).map((t) => '<div style="border:1px solid #0fa3a3;border-radius:8px;padding:6px;margin:4px 0;cursor:pointer" data-kanban="' + t.id + '"><b>' + t.id + '</b> ' + t.title + '<br><span style="opacity:0.8">' + ownerName(t.ownerId) + ' • ' + t.project + '</span></div>').join('') || '<div style="opacity:0.6">— kosong —</div>';
+    return '<div style="min-width:180px"><b>' + s + '</b>' + cards + '</div>';
+  }).join('') + '</div><p style="opacity:0.8">Urutan kolom mengikuti logika Kanban Ruang (triage→done, disederhanakan ke status SukiOffice). Klik kartu untuk detail di bawah.</p>';
+  document.querySelectorAll('[data-kanban]').forEach((n) => n.addEventListener('click', () => {
+    const t = tasks.find((x) => x.id === n.dataset.kanban);
+    document.getElementById('taskMsg').textContent = t.id + ' — ' + t.title + ' • ' + t.project + ' • Owner: ' + ownerName(t.ownerId) + ' • Status: ' + t.status + (t.blockedReason ? ' • Alasan: ' + t.blockedReason : '') + ' • Acceptance: ' + (t.acceptance ? 'ya' : 'belum');
+  }));
+});
+document.getElementById('listBtn').addEventListener('click', () => renderTasks());
 document.getElementById('tasksBtn').addEventListener('click', () => { renderTasks(); document.getElementById('tasks').style.display = 'block'; });
 document.getElementById('tasksClose').addEventListener('click', () => { document.getElementById('tasks').style.display = 'none'; });
 syncAvatarsFromTasks(); renderTasks();
+
+/* ---------- v3.2: Logika Ruang (diadaptasi, bukan fork kode) ---------- */
+/* Pola yang diadaptasi dari Ruang (MIT, yugienugraha/ruang, README):
+   HUD, Panel 3 tab (Crew/Stats/Activity), Kanban (di #tasks, lihat
+   renderTasks Kanban di bawah), view 3D/2D yang diingat browser,
+   tema siang/malam, avatar berjalan lewat lorong (bukan menembus
+   furniture), idle wandering tiap ~32 detik ke stop yang jelas,
+   dan tombol Tidur untuk idle. Yang TIDAK diadaptasi: server Hermes
+   CLI, data Kanban/sesi/token nyata, dan folder/memori agen — karena
+   SukiOffice adalah file statis tanpa server, datanya lokal. */
+const pageLoadTime = Date.now();
+let activityLog = [];
+function logActivity(text) {
+  activityLog.unshift(new Date().toLocaleTimeString('id-ID') + ' — ' + text);
+  activityLog = activityLog.slice(0, 20);
+  if (document.getElementById('ruangPanel').style.display === 'block') renderRuang('activity');
+}
+function updateHUD() {
+  const active = employees.filter((e) => ['typing', 'meeting', 'walking'].includes(e.activity)).length;
+  const running = tasks.filter((t) => t.status === 'In Progress').length;
+  const blocked = tasks.filter((t) => t.status === 'Blocked').length;
+  const hc = document.getElementById('hudCrew'); if (hc) hc.textContent = '👥 Crew aktif: ' + active + '/' + employees.length;
+  const ht = document.getElementById('hudTasks'); if (ht) ht.textContent = '📋 Tugas jalan: ' + running;
+  const hb = document.getElementById('hudBlocked'); if (hb) hb.textContent = '🚧 Blocked: ' + blocked;
+}
+let viewMode = '3d', themeMode = 'dark', sleepMode = false;
+try {
+  viewMode = localStorage.getItem('sukioffice-view') || '3d';
+  themeMode = localStorage.getItem('sukioffice-theme') || 'dark';
+  sleepMode = localStorage.getItem('sukioffice-sleep') === '1';
+} catch (e) {}
+function applyTheme() {
+  if (themeMode === 'light') {
+    scene.background = new THREE.Color(0xeef4f2); scene.fog = new THREE.FogExp2(0xeef4f2, 0.010); sun.intensity = 2.0;
+    document.getElementById('hudTheme').textContent = '☀️ Siang';
+  } else {
+    scene.background = new THREE.Color(0x0f1a1e); scene.fog = new THREE.FogExp2(0x0f1a1e, 0.012); sun.intensity = 1.5;
+    document.getElementById('hudTheme').textContent = '🌙 Malam';
+  }
+  try { localStorage.setItem('sukioffice-theme', themeMode); } catch (e) {}
+}
+function renderFloorplan() {
+  document.getElementById('fpRooms').innerHTML = Object.keys(rooms).map((k) => {
+    const inRoom = employees.filter((e) => e.room === k).map((e) => e.name).join(', ') || '—';
+    return '<div class="fpRoom' + (k === currentRoom ? ' active' : '') + '" data-fproom="' + k + '"><b>' + k + '</b><br>Avatar: ' + inRoom + '</div>';
+  }).join('');
+  document.querySelectorAll('[data-fproom]').forEach((n) => n.addEventListener('click', () => { applyView('3d'); showRoom(n.dataset.fproom); }));
+}
+function applyView(v) {
+  viewMode = v;
+  try { localStorage.setItem('sukioffice-view', v); } catch (e) {}
+  document.getElementById('hudView').textContent = v === '2d' ? '🗺️ 2D' : '🗺️ 3D';
+  if (v === '2d') { renderer.domElement.style.display = 'none'; renderFloorplan(); document.getElementById('floorplan').style.display = 'block'; }
+  else { renderer.domElement.style.display = 'block'; document.getElementById('floorplan').style.display = 'none'; }
+}
+function renderRuang(tab) {
+  document.getElementById('tabCrew').classList.toggle('tabActive', tab === 'crew');
+  document.getElementById('tabStats').classList.toggle('tabActive', tab === 'stats');
+  document.getElementById('tabActivity').classList.toggle('tabActive', tab === 'activity');
+  document.getElementById('ruangCrew').style.display = tab === 'crew' ? 'block' : 'none';
+  document.getElementById('ruangStats').style.display = tab === 'stats' ? 'block' : 'none';
+  document.getElementById('ruangActivity').style.display = tab === 'activity' ? 'block' : 'none';
+  if (tab === 'crew') {
+    document.getElementById('ruangCrew').innerHTML = '<b>Crew — klik stasiun untuk fokus ke avatar itu:</b>' + employees.map((e) => '<div class="crewRow" data-crew="' + e.id + '"><b>' + e.name + '</b> — ' + e.role + '<br>Stasiun: ' + e.room + ' • ' + e.activity + (sleepMode && e.activity === 'idle' ? ' 💤' : '') + '</div>').join('');
+    document.querySelectorAll('[data-crew]').forEach((n) => n.addEventListener('click', () => {
+      const e = employees.find((x) => x.id === n.dataset.crew); if (!e) return;
+      showRoom(e.room);
+      const p = e.built.group.position;
+      camera.position.set(p.x + 2, 2.5, p.z + 3); controls.target.set(p.x, 1.2, p.z);
+      document.getElementById('ruangPanel').style.display = 'none';
+      showEmployeeProfile(e);
+    }));
+  }
+  if (tab === 'stats') {
+    const counts = {}; tasks.forEach((t) => { counts[t.status] = (counts[t.status] || 0) + 1; });
+    const actCounts = {}; employees.forEach((e) => { actCounts[e.activity] = (actCounts[e.activity] || 0) + 1; });
+    const mins = Math.max(1, Math.round((Date.now() - pageLoadTime) / 60000));
+    const upNext = tasks.find((t) => t.status === 'Backlog' || t.status === 'Ready');
+    document.getElementById('ruangStats').innerHTML = '<b>Stats (data lokal):</b><br>Runtime halaman: ' + mins + ' menit<br>Avatar per aktivitas: ' + Object.entries(actCounts).map(([k, v]) => k + ' ' + v).join(', ') +
+      '<br>Tugas per status: ' + Object.entries(counts).map(([k, v]) => k + ' ' + v).join(', ') +
+      '<br>Up next: ' + (upNext ? upNext.id + ' ' + upNext.title : 'tidak ada backlog') +
+      '<br><span style="opacity:0.8">Token usage Ruang TIDAK ada di sini — tidak ada server Hermes CLI yang dibaca.</span>';
+  }
+  if (tab === 'activity') {
+    document.getElementById('ruangActivity').innerHTML = '<b>Activity — 20 terakhir (lokal):</b><br>' + (activityLog.length ? activityLog.map((l) => '<div>• ' + l + '</div>').join('') : 'Belum ada aktivitas tercatat di sesi ini.');
+  }
+}
+document.getElementById('ruangBtn').addEventListener('click', () => { updateHUD(); renderRuang('crew'); document.getElementById('ruangPanel').style.display = 'block'; });
+document.getElementById('ruangClose').addEventListener('click', () => { document.getElementById('ruangPanel').style.display = 'none'; });
+document.getElementById('tabCrew').addEventListener('click', () => renderRuang('crew'));
+document.getElementById('tabStats').addEventListener('click', () => renderRuang('stats'));
+document.getElementById('tabActivity').addEventListener('click', () => renderRuang('activity'));
+document.getElementById('themeBtn').addEventListener('click', () => { themeMode = themeMode === 'dark' ? 'light' : 'dark'; applyTheme(); });
+document.getElementById('viewBtn').addEventListener('click', () => { applyView(viewMode === '3d' ? '2d' : '3d'); });
+document.getElementById('sleepBtn').addEventListener('click', () => {
+  sleepMode = !sleepMode;
+  try { localStorage.setItem('sukioffice-sleep', sleepMode ? '1' : '0'); } catch (e) {}
+  if (sleepMode) { employees.forEach((e) => { if (e.activity === 'idle') { e.activity = 'idle'; } }); logActivity('Mode Tidur aktif: avatar idle tidak lagi wandering.'); }
+  else logActivity('Mode Tidur nonaktif.');
+  document.getElementById('sleepBtn').textContent = sleepMode ? '💤 Tidur: ON' : '💤 Tidur';
+});
+applyTheme(); if (viewMode === '2d') applyView('2d'); updateHUD();
 
 /* ---------- Ganti ruangan + angle ---------- */
 let currentRoom = 'lobby';
@@ -1048,7 +1232,8 @@ function animate() {
   renderer.render(scene, camera);
   frames++; const now = performance.now();
   if (now - lastFpsTime >= 1000) {
-    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v3.1 • Klik avatar untuk profil';
+    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v3.2 • Klik avatar untuk profil';
+    if (typeof updateHUD === 'function') updateHUD();
     frames = 0; lastFpsTime = now;
   }
 }
