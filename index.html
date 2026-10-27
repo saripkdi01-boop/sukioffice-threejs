@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SukiOffice Virtual — Three.js v2.3</title>
+<title>SukiOffice Virtual — Three.js v2.4</title>
 <!--
   SUKIOFFICE VIRTUAL v2 — implementasi dari 4 gambar referensi Three.js
   Lobby (3 angle) + Co-working + CEO + Meeting & Object Sheet.
@@ -34,6 +34,15 @@
   #panel { position: fixed; top: 10px; left: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.70); color: #fff; border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.4; max-width: 640px; }
   #panel b { font-size: 16px; }
   #panel .desc { opacity: 0.88; font-size: 13px; margin: 2px 0 8px; }
+  /* v2.4: UI tidak boleh menutupi 3D. Panel default TERLIPAT jadi bar ramping
+     (~50px). Isinya hanya muncul saat tombol Menu ditekan, dan saat dibuka
+     pun dibatasi 55vh + bisa discroll, bukan menutupi seluruh layar. */
+  #panelHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  #panelHead b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #panelToggle { border: 0; border-radius: 20px; padding: 7px 12px; cursor: pointer; background: #0fa3a3; color: #fff; font-weight: 700; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+  #panel.collapsed #panelBody { display: none; }
+  #panel:not(.collapsed) #panelBody { max-height: 55vh; overflow-y: auto; padding-top: 6px; }
+  #panel:not(.collapsed) { background: rgba(0,0,0,0.82); }
   #panel .btns { display: flex; flex-wrap: wrap; gap: 6px; }
   #panel button { border: 0; border-radius: 20px; padding: 7px 11px; cursor: pointer; background: #fff; color: #111; font-weight: 600; font-size: 12px; }
   #panel button.active { background: #0fa3a3; color: #fff; }
@@ -50,8 +59,9 @@
 </script>
 </head>
 <body>
-<div id="panel">
-  <b>SukiOffice Virtual — v2.3 • Lobby Galeri Produk</b>
+<div id="panel" class="collapsed">
+  <div id="panelHead"><b>SukiOffice Virtual — v2.4</b><button id="panelToggle" type="button">☰ Menu</button></div>
+  <div id="panelBody">
   <div class="desc" id="roomDesc">Lobby — Galeri Produk SUKI APPS: GrahaOS, Hermes, SukiApps Web, SUKI Web Studio, Marketplace, Games, Bahari, SUKI GROUP. Klik panel produk untuk detail.</div>
   <div class="desc" id="loadStatus">Memuat 3D... kalau 8 detik masih tulisan ini, berarti modul Three.js gagal dimuat.</div>
   <div class="desc" id="productInfo">Klik salah satu panel produk di Lobby untuk membaca detailnya di sini.</div>
@@ -71,6 +81,7 @@
     <button class="view" onclick="setView('detail')">Angle: Detail</button>
     <button class="view" onclick="setView('top')">Angle: Atas</button>
   </div>
+  </div>
 </div>
 <div id="meta">FPS: -- • Klik objek untuk info</div>
 <div id="hint">Seret = putar • Cubit/scroll = zoom</div>
@@ -79,6 +90,19 @@
 // Skrip klasik ini JALAN walau modul Three.js gagal — jadi blank tidak lagi diam.
 // Kalau setelah 8 detik tidak ada canvas, tampilkan pesan gagalnya di panel.
 window.__suki3dStarted = false;
+// v2.4: lipat/buka panel UI. Berjalan di skrip klasik, jadi tetap jalan
+// walau modul Three.js gagal.
+function setPanel(open) {
+  var p = document.getElementById('panel');
+  var t = document.getElementById('panelToggle');
+  if (!p || !t) return;
+  if (open) { p.classList.remove('collapsed'); t.textContent = '✕ Tutup'; }
+  else { p.classList.add('collapsed'); t.textContent = '☰ Menu'; }
+}
+window.setPanel = setPanel;
+document.getElementById('panelToggle').addEventListener('click', function () {
+  setPanel(document.getElementById('panel').classList.contains('collapsed'));
+});
 window.addEventListener('error', function (e) {
   var el = document.getElementById('loadStatus');
   if (el && e.message) el.textContent = 'Error: ' + e.message;
@@ -528,6 +552,8 @@ window.showRoom = (name) => {
   document.querySelectorAll('#panel button[data-room]').forEach(b => b.classList.toggle('active', b.dataset.room === name));
   const c = cams[name] || cams.lobby;
   camera.position.set(...c[0]); controls.target.set(...c[1]);
+  // v2.4: habis pilih ruangan, panel otomatis terlipat supaya 3D terlihat penuh.
+  if (window.setPanel) window.setPanel(false);
 };
 window.setView = (v) => {
   const base = cams[currentRoom][0]; const tgt = cams[currentRoom][1];
@@ -547,6 +573,9 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   if (hit && hit.object.userData && hit.object.userData.product) {
     document.getElementById('productInfo').textContent = hit.object.userData.product;
     document.getElementById('meta').textContent = 'Kamu klik: ' + hit.object.name;
+    // v2.4: info produk dibaca di panel, jadi panel dibuka otomatis saat
+    // produk diklik; pengguna bisa melipat lagi dengan tombol Tutup.
+    if (window.setPanel) window.setPanel(true);
   } else if (hit && hit.object.name) {
     document.getElementById('meta').textContent = 'Kamu klik: ' + hit.object.name;
   }
@@ -563,7 +592,7 @@ function animate() {
   requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera);
   frames++; const now = performance.now();
   if (now - lastFpsTime >= 1000) {
-    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v2.3 • Klik panel produk untuk info';
+    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v2.4 • Klik panel produk untuk info';
     frames = 0; lastFpsTime = now;
   }
 }
