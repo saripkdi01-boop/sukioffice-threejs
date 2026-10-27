@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SukiOffice Virtual — Three.js v3 Live</title>
+<title>SukiOffice Virtual — Three.js v3.1 Audit + Tasks</title>
 <!--
   SUKIOFFICE VIRTUAL v2 — implementasi dari 4 gambar referensi Three.js
   Lobby (3 angle) + Co-working + CEO + Meeting & Object Sheet.
@@ -60,6 +60,15 @@
   #fade { position: fixed; inset: 0; z-index: 40; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.35s; }
   #speech { position: fixed; left: 10px; bottom: 52px; z-index: 19; background: #fff; color: #111; border-radius: 12px; padding: 8px 10px; font-size: 12px; max-width: 300px; display: none; }
   @media (max-width: 480px) { #minimap { width: 128px; font-size: 10px; } #profileCard { bottom: 52px; } }
+  /* v3.1: panel tugas + fallback tanpa WebGL. Panel tugas sengaja dibuat
+     sebagai overlay HTML biasa supaya tetap bisa dibuka dari Menu, dan
+     fallback (di skrip klasik) tetap bisa dibaca walau modul 3D gagal. */
+  #tasks { position: fixed; inset: 0; z-index: 25; background: rgba(5,12,14,0.97); color: #fff; display: none; padding: 14px; overflow-y: auto; font-size: 13px; line-height: 1.45; }
+  #tasks input, #tasks select { background: #111; color: #fff; border: 1px solid #0fa3a3; border-radius: 8px; padding: 6px 8px; font-size: 12px; margin: 2px; }
+  #tasks button { border: 0; border-radius: 20px; padding: 7px 12px; cursor: pointer; background: #0fa3a3; color: #fff; font-weight: 700; font-size: 12px; margin: 4px 4px 0 0; }
+  #tasks button.secondary { background: #fff; color: #111; }
+  .taskRow { border: 1px solid #244; border-radius: 10px; padding: 8px; margin: 6px 0; background: rgba(255,255,255,0.04); }
+  #fallback { position: fixed; inset: 0; z-index: 50; background: #0f1a1e; color: #fff; display: none; padding: 16px; overflow-y: auto; font-size: 13px; line-height: 1.5; }
   #panel .btns { display: flex; flex-wrap: wrap; gap: 6px; }
   #panel button { border: 0; border-radius: 20px; padding: 7px 11px; cursor: pointer; background: #fff; color: #111; font-weight: 600; font-size: 12px; }
   #panel button.active { background: #0fa3a3; color: #fff; }
@@ -77,7 +86,7 @@
 </head>
 <body>
 <div id="panel" class="collapsed">
-  <div id="panelHead"><b>SukiOffice Virtual — v3 Live</b><button id="panelToggle" type="button">☰ Menu</button></div>
+  <div id="panelHead"><b>SukiOffice Virtual — v3.1</b><button id="panelToggle" type="button">☰ Menu</button></div>
   <div id="panelBody">
   <div class="desc" id="roomDesc">Lobby — Galeri Produk SUKI APPS: GrahaOS, Hermes, SukiApps Web, SUKI Web Studio, Marketplace, Games, Bahari, SUKI GROUP. Klik panel produk untuk detail.</div>
   <div class="desc" id="loadStatus">Memuat 3D... kalau 8 detik masih tulisan ini, berarti modul Three.js gagal dimuat.</div>
@@ -98,7 +107,9 @@
     <button class="view" onclick="setView('detail')">Angle: Detail</button>
     <button class="view" onclick="setView('top')">Angle: Atas</button>
     <button class="view" id="walkBtn" type="button">Mode Jalan (Desktop)</button>
+    <button class="view" id="tasksBtn" type="button">📋 Tugas &amp; CEO</button>
   </div>
+  <div class="desc" style="opacity:0.7">Keyboard: 1–9 = ruangan, M = menu, T = tugas. Reduced-motion dihormati.</div>
   <div class="desc" id="liveStatus">Kantor Live: memuat avatar...</div>
   </div>
 </div>
@@ -119,6 +130,27 @@
   <div class="mrow"><div class="mroom" data-miniroom="kitchen">Kitchen</div><div class="mroom" data-miniroom="prayer">Prayer</div><div class="mroom" data-miniroom="restroom">WC</div></div>
   <div id="miniAvatars" style="margin-top:6px"></div>
   <div style="margin-top:6px"><label style="font-size:11px">File handoff: </label><select id="handoffFile" style="font-size:11px"><option>Desain-Landing.pdf</option><option>Brief-GrahaOS.docx</option><option>Video-Hermes.mp4</option></select> <button id="handoffBtn" type="button" style="border:0;border-radius:12px;padding:4px 8px;background:#c9a86a;font-weight:700;font-size:11px">Serahkan</button></div>
+</div>
+<div id="fallback">
+  <h2 style="margin:0 0 8px">SukiOffice — Mode Tanpa 3D (Fallback)</h2>
+  <p>3D gagal dimuat di perangkat ini (WebGL/CDN/modul). Sesuai prinsip masterprompt, fungsi bisnis tidak boleh terkunci di balik 3D — daftar tugas lokal di bawah ini tetap bisa dibaca dari penyimpanan browser ini.</p>
+  <div id="fallbackTasks">Memuat tugas lokal...</div>
+  <p style="opacity:0.8">Catatan: ini data LOKAL browser ini saja, bukan backend multi-user. Bila 3D sudah bisa jalan lagi, tutup halaman ini dan buka ulang situsnya.</p>
+</div>
+<div id="tasks">
+  <h2 style="margin:0 0 6px">Tugas &amp; CEO Dashboard — Data LOKAL (bukan backend)</h2>
+  <p style="opacity:0.85">Engine tugas lokal v3.1: status hanya boleh pindah lewat transisi yang sah. Completed wajib acceptance dicentang. Blocked wajib ada alasan. Awaiting Approval hanya bisa disetujui/ditolak oleh manusia lewat tombol di bawah, bukan otomatis.</p>
+  <div id="ceoSummary" style="background:rgba(15,163,163,0.15);border:1px solid #0fa3a3;border-radius:10px;padding:10px"></div>
+  <div style="margin-top:10px"><b>Buat tugas baru</b><br>
+    <input id="newTaskTitle" placeholder="Judul tugas" style="width:55%">
+    <select id="newTaskProject"><option>GrahaOS</option><option>Hermes</option><option>SukiApps Web</option><option>SUKI Web Studio</option><option>SukiOffice</option></select>
+    <select id="newTaskOwner"></select>
+    <input id="newTaskDue" type="date">
+    <button id="newTaskBtn" type="button">Buat (Backlog)</button>
+  </div>
+  <div id="taskMsg" style="margin-top:8px;color:#e0a83c"></div>
+  <div id="taskList"></div>
+  <div><button id="tasksClose" class="secondary" type="button">Tutup Tugas</button></div>
 </div>
 <div id="workspace">
   <h2 style="margin:0 0 8px">Workspace View — Layar Virtual</h2>
@@ -155,6 +187,13 @@ setTimeout(function () {
     if (el) el.textContent = 'GAGAL: Modul Three.js tidak jalan setelah 8 detik. Coba refresh, tutup tab lain, atau ganti jaringan/WiFi, lalu screenshot pesan ini.';
     var m = document.getElementById('meta');
     if (m) m.textContent = 'GAGAL LOAD: modul Three.js tidak jalan.';
+    // v3.1 fallback: baca tugas lokal TANPA modul 3D, tampilkan di #fallback
+    try {
+      var tasks = JSON.parse(localStorage.getItem('sukioffice-tasks-v31') || '[]');
+      var fb = document.getElementById('fallbackTasks');
+      if (fb) fb.innerHTML = tasks.length ? tasks.map(function (t) { return '<div>• ' + t.title + ' — ' + t.status + ' (' + t.project + ')</div>'; }).join('') : 'Belum ada tugas lokal tersimpan di browser ini.';
+      document.getElementById('fallback').style.display = 'block';
+    } catch (e) {}
   }
 }, 8000);
 </script>
@@ -806,6 +845,100 @@ function updateEmployees(t, dt) {
   }
 }
 
+/* ---------- v3.1: Task Engine LOKAL (bukan backend) ---------- */
+/* Aturan transisi sah — Completed TIDAK bisa dilompati dari Backlog/
+   In Progress tanpa lewat In Review + acceptance. Blocked WAJIB alasan.
+   Awaiting Approval hanya berubah lewat tombol Setujui/Tolak di UI. */
+const TASK_TRANSITIONS = {
+  'Backlog': ['Ready', 'Cancelled'],
+  'Ready': ['In Progress', 'Cancelled'],
+  'In Progress': ['In Review', 'Blocked', 'Cancelled'],
+  'In Review': ['Completed', 'In Progress', 'Blocked', 'Awaiting Approval'],
+  'Blocked': ['In Progress', 'Cancelled'],
+  'Awaiting Approval': [],
+  'Completed': [],
+  'Cancelled': [],
+};
+const TASK_SEED = [
+  { id: 'T-001', title: 'Perbaiki blank canvas v2 (lightShaft hilang)', project: 'SukiOffice', ownerId: 'e04', due: '', acceptance: true, blockedReason: '', status: 'Completed' },
+  { id: 'T-002', title: 'Rehab Lobby jadi galeri produk', project: 'SukiOffice', ownerId: 'e03', due: '', acceptance: true, blockedReason: '', status: 'Completed' },
+  { id: 'T-003', title: 'UI lipat v2.4 agar tidak menutupi 3D', project: 'SukiOffice', ownerId: 'e03', due: '', acceptance: true, blockedReason: '', status: 'Completed' },
+  { id: 'T-004', title: 'Avatar Live v3 + EmployeeManager', project: 'SukiOffice', ownerId: 'e02', due: '', acceptance: false, blockedReason: '', status: 'In Review' },
+  { id: 'T-005', title: 'Audit Phase Zero masterprompt', project: 'SukiOffice', ownerId: 'e01', due: '', acceptance: false, blockedReason: '', status: 'In Progress' },
+  { id: 'T-006', title: 'Export GLTF avatar manusia dari Blender', project: 'SukiOffice', ownerId: 'e03', due: '', acceptance: false, blockedReason: 'Belum ada file .blend/model manusia; menunggu keputusan Suki', status: 'Blocked' },
+  { id: 'T-007', title: 'Backend Supabase untuk task multi-user', project: 'SukiApps Web', ownerId: 'e05', due: '', acceptance: false, blockedReason: '', status: 'Backlog' },
+];
+let tasks = [];
+try { tasks = JSON.parse(localStorage.getItem('sukioffice-tasks-v31') || 'null') || TASK_SEED.map((t) => ({ ...t })); } catch (e) { tasks = TASK_SEED.map((t) => ({ ...t })); }
+function saveTasks() { try { localStorage.setItem('sukioffice-tasks-v31', JSON.stringify(tasks)); } catch (e) {} }
+function ownerName(id) { const e = employees.find((x) => x.id === id); return e ? e.name : id; }
+function syncAvatarsFromTasks() {
+  tasks.forEach((t) => {
+    const e = employees.find((x) => x.id === t.ownerId); if (!e) return;
+    if (t.status === 'In Progress') e.activity = 'typing';
+    else if (t.status === 'Blocked') e.activity = 'idle';
+    else if (t.status === 'In Review' || t.status === 'Awaiting Approval') e.activity = 'meeting';
+    else if (t.status === 'Completed' || t.status === 'Cancelled') e.activity = 'idle';
+  });
+  saveLive();
+}
+function renderTasks() {
+  const counts = {};
+  tasks.forEach((t) => { counts[t.status] = (counts[t.status] || 0) + 1; });
+  const blocked = tasks.filter((t) => t.status === 'Blocked');
+  const approvals = tasks.filter((t) => t.status === 'Awaiting Approval');
+  document.getElementById('ceoSummary').innerHTML =
+    '<b>CEO Dashboard (data lokal):</b> Total ' + tasks.length + ' tugas • ' +
+    Object.entries(counts).map(([k, v]) => k + ': ' + v).join(' • ') +
+    '<br><b>Blocked (' + blocked.length + '):</b> ' + (blocked.length ? blocked.map((t) => t.id + ' ' + t.title + ' — alasan: ' + t.blockedReason).join('; ') : 'tidak ada') +
+    '<br><b>Menunggu approval (' + approvals.length + '):</b> ' + (approvals.length ? approvals.map((t) => t.id + ' ' + t.title).join('; ') : 'tidak ada') +
+    '<br><span style="opacity:0.8">Ini BUKAN finance/audit produksi: tidak ada angka pendapatan, tidak ada klaim uang terkumpul.</span>';
+  document.getElementById('taskList').innerHTML = tasks.map((t) => {
+    const allowed = TASK_TRANSITIONS[t.status] || [];
+    return '<div class="taskRow"><b>' + t.id + ' — ' + t.title + '</b><br>Proyek: ' + t.project + ' • Owner: ' + ownerName(t.ownerId) + ' • Status: <b>' + t.status + '</b>' +
+      (t.blockedReason ? '<br>Alasan blocked: ' + t.blockedReason : '') +
+      '<br><label><input type="checkbox" data-acc="' + t.id + '"' + (t.acceptance ? ' checked' : '') + '> Acceptance criteria terpenuhi</label> ' +
+      '<select data-status="' + t.id + '"><option value="">— Pindah status —</option>' + allowed.map((s) => '<option value="' + s + '">' + s + '</option>').join('') + '</select> ' +
+      (t.status === 'Awaiting Approval' ? '<button data-approve="' + t.id + '" type="button">Setujui → Completed</button><button data-reject="' + t.id + '" class="secondary" type="button">Tolak → In Progress</button>' : '') +
+      (t.status !== 'Blocked' ? ' <input data-blockreason="' + t.id + '" placeholder="Alasan bila mau Blocked" style="width:45%">' : '') +
+      '</div>';
+  }).join('');
+  document.querySelectorAll('[data-acc]').forEach((el) => el.addEventListener('change', () => {
+    const t = tasks.find((x) => x.id === el.dataset.acc); t.acceptance = el.checked; saveTasks(); renderTasks();
+  }));
+  document.querySelectorAll('[data-status]').forEach((el) => el.addEventListener('change', () => {
+    const t = tasks.find((x) => x.id === el.dataset.status); const next = el.value; if (!next) return;
+    const msg = document.getElementById('taskMsg');
+    if (next === 'Completed' && !t.acceptance) { msg.textContent = 'DITOLAK: ' + t.id + ' tidak bisa Completed karena acceptance belum dicentang.'; renderTasks(); return; }
+    if (next === 'Blocked') {
+      const reasonEl = document.querySelector('[data-blockreason="' + t.id + '"]');
+      const reason = reasonEl ? reasonEl.value.trim() : '';
+      if (!reason) { msg.textContent = 'DITOLAK: ' + t.id + ' tidak bisa Blocked tanpa alasan. Isi alasan dulu, lalu pilih Blocked lagi.'; renderTasks(); return; }
+      t.blockedReason = reason;
+    } else if (t.status === 'Blocked' && next === 'In Progress') { t.blockedReason = ''; }
+    t.status = next; saveTasks(); syncAvatarsFromTasks(); msg.textContent = t.id + ' pindah ke ' + next + ' (transisi sah).'; renderTasks();
+  }));
+  document.querySelectorAll('[data-approve]').forEach((el) => el.addEventListener('click', () => {
+    const t = tasks.find((x) => x.id === el.dataset.approve);
+    if (!t.acceptance) { document.getElementById('taskMsg').textContent = 'DITOLAK: approval ' + t.id + ' butuh acceptance dicentang dulu.'; renderTasks(); return; }
+    t.status = 'Completed'; saveTasks(); syncAvatarsFromTasks(); renderTasks();
+  }));
+  document.querySelectorAll('[data-reject]').forEach((el) => el.addEventListener('click', () => {
+    const t = tasks.find((x) => x.id === el.dataset.reject); t.status = 'In Progress'; saveTasks(); syncAvatarsFromTasks(); renderTasks();
+  }));
+}
+document.getElementById('newTaskOwner').innerHTML = employees.map((e) => '<option value="' + e.id + '">' + e.name + ' — ' + e.role + '</option>').join('');
+document.getElementById('newTaskBtn').addEventListener('click', () => {
+  const title = document.getElementById('newTaskTitle').value.trim();
+  if (!title) { document.getElementById('taskMsg').textContent = 'Judul tugas wajib diisi.'; return; }
+  const n = tasks.length + 1;
+  tasks.push({ id: 'T-' + String(100 + n).slice(1), title, project: document.getElementById('newTaskProject').value, ownerId: document.getElementById('newTaskOwner').value, due: document.getElementById('newTaskDue').value, acceptance: false, blockedReason: '', status: 'Backlog' });
+  document.getElementById('newTaskTitle').value = ''; saveTasks(); renderTasks();
+});
+document.getElementById('tasksBtn').addEventListener('click', () => { renderTasks(); document.getElementById('tasks').style.display = 'block'; });
+document.getElementById('tasksClose').addEventListener('click', () => { document.getElementById('tasks').style.display = 'none'; });
+syncAvatarsFromTasks(); renderTasks();
+
 /* ---------- Ganti ruangan + angle ---------- */
 let currentRoom = 'lobby';
 window.showRoom = (name) => {
@@ -879,7 +1012,16 @@ document.getElementById('wsInput').addEventListener('input', (e) => {
    teleport, yang sudah dites di A76. */
 const plc = new PointerLockControls(camera, renderer.domElement);
 const keys = {};
-window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ROOM_ORDER = ['lobby', 'coworking', 'ceo', 'meeting1', 'meeting2', 'huddle', 'kitchen', 'prayer', 'restroom'];
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (e.key >= '1' && e.key <= '9') { const r = ROOM_ORDER[Number(e.key) - 1]; if (r) showRoom(r); }
+  if (e.key === 'm' || e.key === 'M') { if (window.setPanel) window.setPanel(document.getElementById('panel').classList.contains('collapsed')); }
+  if (e.key === 't' || e.key === 'T') { const ts = document.getElementById('tasks'); if (ts.style.display === 'block') ts.style.display = 'none'; else { renderTasks(); ts.style.display = 'block'; } }
+});
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 document.getElementById('walkBtn').addEventListener('click', () => {
   if (window.innerWidth < 768) { alert('Mode Jalan Pointer Lock hanya untuk desktop dengan mouse + keyboard. Di HP, pakai tombol ruangan / MiniMap teleport.'); return; }
@@ -900,13 +1042,13 @@ function animate() {
     camera.position.z = Math.max(-5, Math.min(5, camera.position.z));
     camera.position.y = 1.7;
   } else controls.update();
-  updateEmployees(t, dt);
-  // Fog dinamis halus + god rays (lightShaft) tetap dari v2
-  scene.fog.density = 0.012 + Math.sin(t * 0.2) * 0.002;
+  // v3.1 reduced-motion: avatar & fog diam, bukan animasi terus-menerus
+  updateEmployees(reducedMotion ? 0 : t, reducedMotion ? 0 : dt);
+  if (!reducedMotion) scene.fog.density = 0.012 + Math.sin(t * 0.2) * 0.002;
   renderer.render(scene, camera);
   frames++; const now = performance.now();
   if (now - lastFpsTime >= 1000) {
-    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v3 Live • Klik avatar untuk profil';
+    document.getElementById('meta').textContent = 'FPS: ' + frames + ' • Draw calls: ' + renderer.info.render.calls + ' • v3.1 • Klik avatar untuk profil';
     frames = 0; lastFpsTime = now;
   }
 }
