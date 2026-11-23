@@ -119,10 +119,11 @@ body.light .stage{background:radial-gradient(circle at 50% 15%,#fff6df 0,#eadfc9
       <div class="hud" aria-label="Ringkasan kantor">
         <div class="chip"><span class="dot"></span><b id="hudAgents">0</b>&nbsp;agen aktif</div>
         <div class="chip"><b id="hudTasks">0</b>&nbsp;tugas jalan</div>
-        <div class="chip bad"><b id="hudBlocked">0</b>&nbsp;blocked</div>
+        <div class="chip bad"><b id="hudBlocked">0</b>&nbsp;<span id="hudBlockedLabel">blocked</span></div>
         <div class="chip"><b id="hudFps">--</b>&nbsp;FPS</div>
         <div class="chip"><b id="hudCalls">--</b>&nbsp;draw calls</div>
         <div class="chip"><b id="hudRoom">Lobby</b></div>
+        <div class="chip" id="feedBadge"><b>Mode lokal</b></div>
       </div>
       <div class="bubble" id="bubble" hidden></div>
       <nav class="room-nav" id="roomNav" aria-label="Navigasi ruangan"></nav>
@@ -160,10 +161,11 @@ body.light .stage{background:radial-gradient(circle at 50% 15%,#fff6df 0,#eadfc9
             </select>
             <button class="primary" type="submit">Simpan tugas</button>
           </form>
+          <p class="section-note" id="liveNote" hidden>Data asli dari MCP Kantor — ubah lewat agenmu. Papan ini tampil-saja dan diperbarui otomatis tiap menit.</p>
           <div class="kanban" id="kanban"></div>
         </section>
         <section id="tab-activity" hidden>
-          <p class="section-note">Log ini hanya mencatat aksi lokal di perangkat ini — bukan sinkronisasi cloud dan bukan aktivitas agen sungguhan.</p>
+          <p class="section-note" id="activityNote">Log ini hanya mencatat aksi lokal di perangkat ini — bukan sinkronisasi cloud dan bukan aktivitas agen sungguhan.</p>
           <div id="activityList"></div>
         </section>
       </div>
@@ -270,27 +272,95 @@ function toast(msg){ const el=document.getElementById('toast'); el.textContent=m
 
 /* ---------------- Panel, Kanban, Activity, modal, dan mode 2D ---------------- */
 const $ = id => document.getElementById(id);
-function countsByStatus(){ const c={backlog:0,proses:0,review:0,selesai:0,batal:0}; store.tasks.forEach(t=>{ if(c[t.status]!==undefined) c[t.status]++; }); return c; }
+
+/* ---------------- Data asli MCP Kantor (mode LIVE) ----------------
+   Halaman mencoba membaca feed publik MCP Kantor saat dimuat.
+   Berhasil -> mode LIVE: panel Crew/Tugas/Activity/HUD memakai data feed,
+   konfigurasi AGENTS tetap menjadi sumber tampilan 3D (ruangan & warna).
+   Gagal -> mode lokal persis seperti sebelumnya (localStorage). */
+const FEED_URL = 'https://mcp-kantor-suki.vercel.app/feed';
+let liveMode = false;
+let liveFeed = null;
+function visibleTasks(){ return (liveMode && liveFeed && Array.isArray(liveFeed.tasks)) ? liveFeed.tasks : store.tasks; }
+function feedAgent(id){ return (liveFeed && Array.isArray(liveFeed.agents)) ? liveFeed.agents.find(a=>a.id===id) || null : null; }
+function liveProsesTitle(agentId){
+  if(!(liveMode && liveFeed && Array.isArray(liveFeed.tasks))) return null;
+  const t = liveFeed.tasks.find(t=>t.agentId===agentId && t.status==='proses');
+  return t ? t.title : null;
+}
+function crewTaskLine(a){
+  if(!liveMode) return a.currentTask;
+  return liveProsesTitle(a.id) || (feedAgent(a.id) && feedAgent(a.id).currentTask) || a.currentTask;
+}
+function checkedInCount(){ return (liveFeed && Array.isArray(liveFeed.agents)) ? liveFeed.agents.filter(a=>a.checkedIn).length : 0; }
+function feedTimeLabel(iso){
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleString('id-ID',{dateStyle:'medium', timeStyle:'short'});
+}
+function applyFeed(){
+  AGENTS.forEach(a=>{ a.live = feedAgent(a.id); });
+  renderModeUI(); renderCrew(); renderTasks(); renderActivity(); updateHUD();
+}
+function renderModeUI(){
+  const badge = $('feedBadge'); if(!badge) return;
+  if(liveMode){
+    badge.innerHTML = '<span class="dot"></span><b>LIVE</b>&nbsp;— MCP Kantor';
+    const form = $('taskForm'); if(form) form.style.display = 'none';
+    const note = $('liveNote'); if(note) note.hidden = false;
+    const an = $('activityNote'); if(an) an.textContent = 'Aktivitas asli dari MCP Kantor, terbaru dulu, diperbarui otomatis tiap menit.';
+  } else {
+    badge.innerHTML = '<b>Mode lokal</b>';
+    const form = $('taskForm'); if(form) form.style.display = '';
+    const note = $('liveNote'); if(note) note.hidden = true;
+  }
+}
+async function fetchFeed(){
+  try{
+    const ctl = new AbortController();
+    const timer = setTimeout(()=>ctl.abort(), 6000);
+    const res = await fetch(FEED_URL, {signal:ctl.signal, cache:'no-store'});
+    clearTimeout(timer);
+    if(!res.ok) throw new Error('feed HTTP '+res.status);
+    const data = await res.json();
+    if(!data || data.ok !== true || !Array.isArray(data.agents) || !Array.isArray(data.tasks)) throw new Error('format feed tidak dikenal');
+    liveFeed = data; liveMode = true;
+    applyFeed();
+  }catch(e){
+    /* Gagal memuat/refresh: pertahankan mode & data terakhir, jangan ganggu tampilan. */
+  }
+}
+function countsByStatus(){ const c={backlog:0,proses:0,review:0,selesai:0,batal:0}; visibleTasks().forEach(t=>{ if(c[t.status]!==undefined) c[t.status]++; }); return c; }
 function renderCEO(){
   const c=countsByStatus();
   $('ceoCounts').innerHTML = Object.keys(STATUSES).map(k=>`<div class="count"><b>${c[k]}</b><span>${STATUSES[k]}</span></div>`).join('');
+  if(liveMode){
+    $('ceoText').textContent = `${visibleTasks().length} tugas asli dari MCP Kantor: ${c.proses} sedang diproses, ${c.review} menunggu review, ${c.selesai} selesai. ${checkedInCount()} dari ${AGENTS.length} agen sudah check-in. Data diperbarui otomatis tiap menit.`;
+    return;
+  }
   const blockedAgents=AGENTS.filter(a=>a.status==='blocked').length;
   $('ceoText').textContent = `${store.tasks.length} tugas lokal tercatat: ${c.proses} sedang diproses, ${c.review} menunggu review, ${c.selesai} selesai. ${blockedAgents} agen berstatus blocked. Data ini simulasi lokal dari Kanban perangkat ini.`;
 }
 function renderCrew(){
-  $('crewList').innerHTML = AGENTS.map(a=>`
+  $('crewList').innerHTML = AGENTS.map(a=>{
+    const fa = liveMode ? feedAgent(a.id) : null;
+    const name = fa && fa.name ? fa.name : a.name;
+    const role = fa && fa.role ? fa.role : a.role;
+    const pill = liveMode
+      ? `<span class="status ${fa && fa.checkedIn ? 'working' : 'idle'}">${fa && fa.checkedIn ? 'Check-in' : 'Belum check-in'}</span>`
+      : `<span class="status ${a.status}">${statusLabel(a.status)}</span>`;
+    return `
     <button class="agent-card" type="button" data-agent="${a.id}">
       <span class="avatar-dot" style="background:${a.shirt}">${esc(a.callsign.split('-')[0])}</span>
-      <span><h3>${esc(a.name)} • ${esc(a.callsign)}</h3><p>${esc(a.role)} — ${esc(roomById[a.room].name)}<br>${esc(a.currentTask)}</p></span>
-      <span class="status ${a.status}">${statusLabel(a.status)}</span>
-    </button>`).join('');
+      <span><h3>${esc(name)} • ${esc(a.callsign)}</h3><p>${esc(role)} — ${esc(roomById[a.room].name)}<br>${esc(crewTaskLine(a))}</p></span>
+      ${pill}
+    </button>`;}).join('');
   document.querySelectorAll('[data-agent]').forEach(btn=>btn.addEventListener('click',()=>focusAgent(btn.dataset.agent,true)));
 }
 function renderTasks(){
   const sel=$('taskAgent');
   sel.innerHTML = AGENTS.map(a=>`<option value="${a.id}">${esc(a.name)} — ${esc(a.role)}</option>`).join('');
   $('kanban').innerHTML = Object.keys(STATUSES).map(status=>{
-    const tasks=store.tasks.filter(t=>t.status===status);
+    const tasks=visibleTasks().filter(t=>t.status===status);
     return `<section class="kcol"><h3>${STATUSES[status]} <span>${tasks.length}</span></h3>${tasks.length?tasks.map(t=>{const a=agentById[t.agentId]||AGENTS[0]; return `
       <button class="task-card" type="button" data-task="${t.id}"><h4>${esc(t.title)}</h4><div class="task-meta"><span style="border-color:${a.shirt};color:${a.shirt}">${esc(a.name)}</span><span>${esc(t.priority||'Sedang')}</span><span>${esc(roomById[a.room].short)}</span></div></button>`;}).join(''):'<div class="empty">Belum ada tugas</div>'}</section>`;
   }).join('');
@@ -298,6 +368,15 @@ function renderTasks(){
   renderCEO(); updateHUD();
 }
 function renderActivity(){
+  if(liveMode && liveFeed && Array.isArray(liveFeed.activity)){
+    const items = [...liveFeed.activity].sort((x,y)=>String(y.createdAt||'').localeCompare(String(x.createdAt||'')));
+    $('activityList').innerHTML = items.length ? items.map(x=>{
+      const a = agentById[x.agentId];
+      const who = a ? `${a.name} • ` : '';
+      return `<div class="activity-item">${esc(who + (x.summary || x.kind || 'Aktivitas'))}<time>${esc(feedTimeLabel(x.createdAt))}</time></div>`;
+    }).join('') : '<div class="empty">Belum ada aktivitas dari MCP Kantor.</div>';
+    return;
+  }
   $('activityList').innerHTML = store.activity.length ? store.activity.map(x=>`<div class="activity-item">${esc(x.text)}<time>${esc(x.at)}</time></div>`).join('') : '<div class="empty">Belum ada aktivitas lokal.</div>';
 }
 function renderNav(){
@@ -311,10 +390,18 @@ function render2D(){
   document.querySelectorAll('[data-room2]').forEach(btn=>btn.addEventListener('click',()=>{ goToRoom(btn.dataset.room2,'denah 2D'); setView('2d'); }));
 }
 function updateHUD(){
-  const active=AGENTS.filter(a=>['working','meeting','review'].includes(a.status)).length;
-  $('hudAgents').textContent=active;
-  $('hudTasks').textContent=store.tasks.filter(t=>t.status==='proses').length;
-  $('hudBlocked').textContent=AGENTS.filter(a=>a.status==='blocked').length;
+  if(liveMode){
+    $('hudAgents').textContent=checkedInCount();
+    $('hudTasks').textContent=visibleTasks().filter(t=>t.status==='proses').length;
+    $('hudBlocked').textContent=visibleTasks().filter(t=>t.status==='batal').length;
+    $('hudBlockedLabel').textContent='batal';
+  } else {
+    const active=AGENTS.filter(a=>['working','meeting','review'].includes(a.status)).length;
+    $('hudAgents').textContent=active;
+    $('hudTasks').textContent=store.tasks.filter(t=>t.status==='proses').length;
+    $('hudBlocked').textContent=AGENTS.filter(a=>a.status==='blocked').length;
+    $('hudBlockedLabel').textContent='blocked';
+  }
   $('hudRoom').textContent=roomById[currentRoom].name;
   renderCEO();
 }
@@ -331,10 +418,19 @@ $('modalBack').addEventListener('click',e=>{ if(e.target===$('modalBack')) close
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
 function openAgent(a){
   selectedAgentId=a.id;
+  if(liveMode){
+    const fa = feedAgent(a.id);
+    openModal({kicker:'Profil agen', title:`${a.name} • ${a.callsign}`, body:crewTaskLine(a), grid:[['Peran',a.role],['Ruangan',roomById[a.room].name],['Check-in',fa && fa.checkedIn ? `Sudah${fa.lastCheckIn ? ' • terakhir '+feedTimeLabel(fa.lastCheckIn) : ''}` : 'Belum check-in'],['Owner',(fa && fa.owner) || a.owner],['Warna identitas',a.shirt],['Mode data','LIVE — MCP Kantor']], actions:[{label:'Tutup',primary:true,onClick:closeModal}]});
+    return;
+  }
   openModal({kicker:'Profil agen', title:`${a.name} • ${a.callsign}`, body:a.currentTask, grid:[['Peran',a.role],['Ruangan',roomById[a.room].name],['Status',statusLabel(a.status)],['Owner',a.owner],['Warna identitas',a.shirt],['Mode data','Konfigurasi lokal']], actions:[{label:'Tutup',primary:true,onClick:closeModal}]});
 }
 function openTask(id){
-  const t=store.tasks.find(x=>x.id===id); if(!t) return; selectedTaskId=id; const a=agentById[t.agentId]||AGENTS[0];
+  const t=visibleTasks().find(x=>x.id===id); if(!t) return; selectedTaskId=id; const a=agentById[t.agentId]||AGENTS[0];
+  if(liveMode){
+    openModal({kicker:'Detail tugas — MCP Kantor', title:t.title, body:`Tugas ini dikerjakan oleh ${a.name} (${a.role}) di ${roomById[a.room].name}. Data asli dari MCP Kantor dan tampil-saja di sini — perubahan dilakukan lewat agen pemilik tugas.`, grid:[['Penerima',`${a.name} • ${a.callsign}`],['Status',STATUSES[t.status]||t.status],['Prioritas',t.priority||'Sedang'],['Ruangan',roomById[a.room].name]], actions:[{label:'Tutup',primary:true,onClick:closeModal}]});
+    return;
+  }
   const actions=Object.keys(STATUSES).filter(s=>s!==t.status).map(s=>({label:`Pindah ke ${STATUSES[s]}`, onClick:()=>{ t.status=s; saveStore(); renderTasks(); logActivity(`Tugas "${t.title}" dipindahkan ke ${STATUSES[s]}.`); closeModal(); }}));
   actions.push({label:'Hapus tugas', onClick:()=>{ store.tasks=store.tasks.filter(x=>x.id!==id); saveStore(); renderTasks(); logActivity(`Tugas "${t.title}" dihapus dari Kanban lokal.`); closeModal(); }});
   actions.push({label:'Tutup',primary:true,onClick:closeModal});
@@ -352,6 +448,7 @@ function focusAgent(id,open=false){
 }
 $('taskForm').addEventListener('submit',e=>{
   e.preventDefault();
+  if(liveMode){ toast('Mode LIVE: tugas diubah lewat agenmu di MCP Kantor'); return; }
   const title=$('taskTitle').value.trim(); if(!title) return;
   const task={id:'t'+Date.now(), title, agentId:$('taskAgent').value, status:$('taskStatus').value, priority:'Sedang'};
   store.tasks.unshift(task); saveStore(); renderTasks(); e.target.reset(); logActivity(`Tugas lokal baru ditambahkan: "${title}" untuk ${agentById[task.agentId].name}.`); toast('Tugas tersimpan lokal');
@@ -614,7 +711,10 @@ function focusAvatar(id){
 }
 function showBubble(agent,ms=4500){
   bubbleAgent=agent; bubbleUntil=performance.now()+ms;
-  $('bubble').innerHTML=`<b>${esc(agent.name)} • ${statusLabel(agent.status)}</b>${esc(agent.currentTask)}<br><small>${esc(agent.role)} — ${esc(roomById[agent.room].name)}</small>`;
+  const fa = liveMode ? feedAgent(agent.id) : null;
+  const headStatus = liveMode ? (fa && fa.checkedIn ? 'Check-in' : 'Belum check-in') : statusLabel(agent.status);
+  const line = liveMode ? (liveProsesTitle(agent.id) || agent.currentTask) : agent.currentTask;
+  $('bubble').innerHTML=`<b>${esc(agent.name)} • ${esc(headStatus)}</b>${esc(line)}<br><small>${esc(agent.role)} — ${esc(roomById[agent.room].name)}</small>`;
   $('bubble').hidden=false;
 }
 function updateBubble(){
@@ -696,6 +796,9 @@ if(store.activity.length===0) logActivity('SukiOffice v4 dibuka. Data Crew, Kanb
 init3D();
 setView(viewMode);
 if(!threeReady) setView('2d');
+renderModeUI();
+fetchFeed();
+setInterval(fetchFeed, 60000);
 </script>
 </body>
 </html>
