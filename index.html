@@ -42,7 +42,7 @@ body.light .stage{background:radial-gradient(circle at 50% 15%,#fff6df 0,#eadfc9
 .room-nav{position:absolute;left:12px;right:12px;bottom:104px;z-index:11;display:flex;gap:7px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:none}
 .room-nav::-webkit-scrollbar{display:none}
 .room-btn{white-space:nowrap;background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:blur(10px)}
-.minimap{position:absolute;left:12px;bottom:12px;width:248px;z-index:12;background:color-mix(in srgb,var(--surface) 92%,transparent);border:1px solid var(--line);border-radius:16px;padding:10px;backdrop-filter:blur(12px);box-shadow:var(--shadow)}
+.minimap{position:absolute;left:12px;bottom:42px;width:248px;z-index:12;background:color-mix(in srgb,var(--surface) 92%,transparent);border:1px solid var(--line);border-radius:16px;padding:10px;backdrop-filter:blur(12px);box-shadow:var(--shadow)}
 .minimap h3{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .mini-room{border-radius:11px;padding:7px 5px;font-size:10px;line-height:1.15;min-height:44px}
@@ -50,7 +50,12 @@ body.light .stage{background:radial-gradient(circle at 50% 15%,#fff6df 0,#eadfc9
 .bubble{position:absolute;z-index:10;max-width:230px;transform:translate(-50%,-100%);background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:9px 11px;font-size:12px;line-height:1.35;box-shadow:var(--shadow);pointer-events:none}
 .bubble:after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:12px;background:inherit;border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
 .bubble b{display:block;margin-bottom:2px}.bubble small{color:var(--muted)}
-.stage-help{position:absolute;right:12px;bottom:12px;z-index:9;color:var(--muted);font-size:11px;background:color-mix(in srgb,var(--surface) 82%,transparent);border:1px solid var(--line);padding:7px 9px;border-radius:999px;backdrop-filter:blur(8px)}
+.stage-help{position:absolute;right:12px;bottom:42px;z-index:9;color:var(--muted);font-size:11px;background:color-mix(in srgb,var(--surface) 82%,transparent);border:1px solid var(--line);padding:7px 9px;border-radius:999px;backdrop-filter:blur(8px)}
+.ticker{position:absolute;left:0;right:0;bottom:0;height:30px;z-index:13;background:color-mix(in srgb,var(--surface) 94%,transparent);border-top:1px solid var(--line);overflow:hidden;display:flex;align-items:center;backdrop-filter:blur(10px)}
+.ticker-track{display:inline-flex;white-space:nowrap;animation:tickmove linear infinite;font-size:12px;color:var(--muted);will-change:transform}
+.ticker-track span{padding-right:14px}
+.ticker:hover .ticker-track{animation-play-state:paused}
+@keyframes tickmove{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .panel{background:var(--bg2);border-left:1px solid var(--line);min-height:0;display:flex;flex-direction:column;z-index:20}
 .ceo-strip{margin:12px 12px 0;background:linear-gradient(135deg,color-mix(in srgb,var(--coral) 18%,var(--surface)),var(--surface));border:1px solid var(--line);border-radius:16px;padding:12px}
 .ceo-strip h2{font-size:13px;margin:0 0 8px}.ceo-strip p{font-size:12px;color:var(--muted);margin:0;line-height:1.45}
@@ -92,7 +97,7 @@ body.light .stage{background:radial-gradient(circle at 50% 15%,#fff6df 0,#eadfc9
   .panel-body{overflow:visible}.brand p{display:none}.brand h1{font-size:16px}.topbar{align-items:flex-start}
   .minimap{width:205px}.room-nav{bottom:118px}.stage-help{display:none}.floor-grid{grid-template-columns:1fr 1fr}
 }
-@media(max-width:560px){.floor-grid{grid-template-columns:1fr}.hud{right:6px}.chip{font-size:10px}.minimap{display:none}.room-nav{bottom:12px}.layout{grid-template-rows:minmax(480px,58vh) auto}.top-actions .hide-sm{display:none}}
+@media(max-width:560px){.floor-grid{grid-template-columns:1fr}.hud{right:6px}.chip{font-size:10px}.minimap{display:none}.room-nav{bottom:42px}.layout{grid-template-rows:minmax(480px,58vh) auto}.top-actions .hide-sm{display:none}}
 </style>
 </head>
 <body>
@@ -109,6 +114,8 @@ body.light .stage{background:radial-gradient(circle at 50% 15%,#fff6df 0,#eadfc9
       <button class="pill-btn hide-sm" id="btn2d" type="button">Mode 2D</button>
       <button class="pill-btn" id="btnTheme" type="button">Tema terang</button>
       <button class="pill-btn" id="btnResetView" type="button">Reset kamera</button>
+      <button class="pill-btn" id="btnTour" type="button">▶ Tur kantor</button>
+      <button class="pill-btn hide-sm" id="btnSnap" type="button">📸 Foto</button>
     </div>
   </header>
 
@@ -124,6 +131,7 @@ body.light .stage{background:radial-gradient(circle at 50% 15%,#fff6df 0,#eadfc9
         <div class="chip"><b id="hudCalls">--</b>&nbsp;draw calls</div>
         <div class="chip"><b id="hudRoom">Lobby</b></div>
         <div class="chip" id="feedBadge"><b>Mode lokal</b></div>
+        <div class="chip" id="modelChip"><b>Model 3D</b>&nbsp;prosedural</div>
       </div>
       <div class="bubble" id="bubble" hidden></div>
       <nav class="room-nav" id="roomNav" aria-label="Navigasi ruangan"></nav>
@@ -132,6 +140,7 @@ body.light .stage{background:radial-gradient(circle at 50% 15%,#fff6df 0,#eadfc9
         <div class="mini-grid" id="miniGrid"></div>
       </aside>
       <div class="stage-help">Seret untuk mengorbit • Scroll untuk zoom • WASD menggeser fokus • Klik avatar/produk untuk detail</div>
+      <div class="ticker" id="ticker" aria-label="Ticker aktivitas kantor"><div class="ticker-track" id="tickerTrack"></div></div>
       <div class="fade" id="fade"></div>
     </section>
 
@@ -265,7 +274,7 @@ function loadStore(){
 }
 function saveStore(){ try{ store.room=currentRoom; store.view=viewMode; localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
 function nowLabel(){ return new Date().toLocaleString('id-ID',{dateStyle:'medium', timeStyle:'short'}); }
-function logActivity(text){ store.activity.unshift({text, at:nowLabel()}); store.activity = store.activity.slice(0,20); saveStore(); renderActivity(); }
+function logActivity(text){ store.activity.unshift({text, at:nowLabel()}); store.activity = store.activity.slice(0,20); saveStore(); renderActivity(); renderTicker(); }
 function statusLabel(s){ return {working:'Bekerja', meeting:'Rapat', blocked:'Blocked', idle:'Santai', review:'Review'}[s] || s; }
 function esc(s){ return String(s??'').replace(/[&<>'"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('on'),2300); }
@@ -300,6 +309,7 @@ function feedTimeLabel(iso){
 function applyFeed(){
   AGENTS.forEach(a=>{ a.live = feedAgent(a.id); });
   renderModeUI(); renderCrew(); renderTasks(); renderActivity(); updateHUD();
+  drawAnnouncementBoard(); renderTicker();
 }
 function renderModeUI(){
   const badge = $('feedBadge'); if(!badge) return;
@@ -463,6 +473,8 @@ $('btnTheme').addEventListener('click',()=>{
 });
 $('btn2d').addEventListener('click',()=>setView(viewMode==='3d'?'2d':'3d'));
 $('btnResetView').addEventListener('click',()=>{ resetCamera(); toast('Kamera dikembalikan ke posisi ruangan'); });
+$('btnTour').addEventListener('click',()=>{ tour.on ? stopTour() : startTour(); });
+$('btnSnap').addEventListener('click',snapshot);
 function applyTheme(){
   document.body.classList.toggle('light',store.theme==='light');
   $('btnTheme').textContent = store.theme==='light' ? 'Tema gelap' : 'Tema terang';
@@ -473,11 +485,12 @@ function setView(mode){
   $('plan2d').classList.toggle('on',mode==='2d');
   $('scene').style.visibility = mode==='2d' ? 'hidden' : 'visible';
   $('btn2d').textContent = mode==='2d' ? 'Mode 3D' : 'Mode 2D';
-  if(mode==='2d') render2D();
+  if(mode==='2d'){ render2D(); if(tour.on) stopTour(); }
   logActivity(`Tampilan kantor diganti ke mode ${mode.toUpperCase()}.`);
 }
 function goToRoom(roomId,source='navigasi'){
   if(!roomById[roomId]) return;
+  if(source!=='tur' && tour.on) stopTour();
   const changed=roomId!==currentRoom;
   currentRoom=roomId; selectedAgentId=null; saveStore(); renderNav(); render2D(); updateHUD();
   const fade=$('fade'); fade.classList.add('on');
@@ -489,6 +502,7 @@ function goToRoom(roomId,source='navigasi'){
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 let scene, camera, renderer, controls, clock;
 let roomGroup=null, avatarGroup=null;
@@ -496,6 +510,7 @@ let interactives=[], avatars=[];
 let keysDown=new Set();
 let frames=0, fpsTime=performance.now();
 let bubbleAgent=null, bubbleUntil=0;
+let buildSeq=0;
 let threeReady=false;
 
 const MAT = {
@@ -617,6 +632,12 @@ function buildFurniture(room){
     PRODUCTS.forEach((p,i)=>{ const x=-5.2+i*2.08; const frame=box(g,1.72,1.18,.07,MAT.dark,x,2.05,-d/2+.16); const panel=plane(g,1.56,1.02,new THREE.MeshStandardMaterial({map:productTexture(p),roughness:.55}),x,2.05,-d/2+.21); panel.userData.product=p; frame.userData.product=p; interactives.push(panel,frame); });
     const pole=cyl(g,.035,.035,2.7,MAT.metal,-6.2,1.35,-3.4); const flagTex=canvasTexture(512,320,(x,ww,hh)=>{x.fillStyle='#e70011';x.fillRect(0,0,ww,hh/2);x.fillStyle='#fff';x.fillRect(0,hh/2,ww,hh/2);}); plane(g,1.55,.95,new THREE.MeshStandardMaterial({map:flagTex,side:THREE.DoubleSide,roughness:.8}),-5.38,2.25,-3.4);
     addShelf(g,5.9,-2.8,-Math.PI/2);
+    // Papan pengumuman lobi: menampilkan pengumuman terbaru MCP Kantor
+    // (digambar ulang setiap feed tiba; mode lokal menampilkan sambutan).
+    const boardG=new THREE.Group(); boardG.position.set(-w/2+.15,0,.4); boardG.rotation.y=Math.PI/2; g.add(boardG);
+    box(boardG,3.9,2.02,.08,MAT.dark,0,2.02,0);
+    plane(boardG,3.7,1.95,new THREE.MeshStandardMaterial({map:announcementBoardTexture(),roughness:.6}),0,2.02,.055);
+    box(boardG,.09,.8,.09,MAT.dark,-1.7,.42,0); box(boardG,.09,.8,.09,MAT.dark,1.7,.42,0);
   }
   if(id==='direktur'){
     box(g,3.4,.14,1.35,MAT.wood,0,.82,.4); box(g,3.1,.78,.12,MAT.dark,0,.4,.95); addChair(g,-1,0,1.85,Math.PI); addChair(g,1,0,1.85,Math.PI); addChair(g,0,0,2.05,0);
@@ -689,10 +710,13 @@ function createAvatar(agent,index,spot){
   const armL=arm(-1), armR=arm(1); const label=makeLabel(agent); g.add(label);
   g.traverse(o=>{o.userData.agentId=agent.id; if(o.isMesh) interactives.push(o);});
   avatarGroup.add(g);
-  return {agent,group:g,head,torso,armL,armR,legL,legR,home:new THREE.Vector3(spot[0],0,spot[1]),target:new THREE.Vector3(spot[0],0,spot[1]),path:[],wait:2+index*1.3,phase:index*1.71,walking:false};
+  const av={agent,group:g,head,torso,armL,armR,legL,legR,label,home:new THREE.Vector3(spot[0],0,spot[1]),target:new THREE.Vector3(spot[0],0,spot[1]),path:[],wait:2+index*1.3,phase:index*1.71,walking:false,model:null,mixer:null,buildSeq};
+  tryLoadModel(av);
+  return av;
 }
 function buildRoom3D(roomId){
   if(!threeReady) return;
+  buildSeq++;
   if(roomGroup){ scene.remove(roomGroup); disposeGroup(roomGroup); }
   if(avatarGroup){ scene.remove(avatarGroup); disposeGroup(avatarGroup); }
   interactives=[]; avatars=[]; roomGroup=new THREE.Group(); avatarGroup=new THREE.Group(); scene.add(roomGroup,avatarGroup);
@@ -730,6 +754,7 @@ function pickAvatarTarget(av){
 }
 function animateAvatars(t,dt){
   avatars.forEach((av,i)=>{
+    if(av.mixer) av.mixer.update(dt);
     const p=av.group.position; const speed=1.18;
     if(av.path.length){
       const next=av.path[0]; const dx=next.x-p.x, dz=next.z-p.z; const dist=Math.hypot(dx,dz);
@@ -746,6 +771,143 @@ function animateAvatars(t,dt){
     else if(av.agent.status==='blocked'){ av.head.rotation.x=.18; av.armL.rotation.x=.08; av.armR.rotation.x=.08; }
     else { av.armL.rotation.x=Math.sin(t*1.4+av.phase)*.06; av.armR.rotation.x=-Math.sin(t*1.4+av.phase)*.06; av.head.rotation.x=0; }
     if(i===0 && Math.floor(t)%9===0 && !bubbleAgent) showBubble(av.agent,3200);
+  });
+}
+/* ---------------- Fitur v5: model GLB, papan pengumuman, ticker, tur, foto ----------------
+   1) Jalur impor 3D: berkas GLB Salsa (Blender) cukup ditaruh di folder
+      models/ dengan nama sukioffice-<id>.glb — kantor otomatis memakainya
+      menggantikan avatar prosedural agen itu. Tidak ada berkas = prosedural.
+   2) Papan pengumuman lobi menampilkan pengumuman terbaru MCP Kantor.
+   3) Ticker di dasar panggung mengalirkan pengumuman + aktivitas terbaru.
+   4) Tur kantor menggerakkan kamera keliling 9 ruangan; tombol Foto
+      menyimpan tangkapan layar panggung sebagai PNG. */
+function feedName(id){
+  if(liveFeed && Array.isArray(liveFeed.agents)){ const a=liveFeed.agents.find(x=>x.id===id); if(a) return a.name; }
+  return agentById[id] ? agentById[id].name : id;
+}
+const MODEL_BASE='models/';
+let gltfLoader=null;
+const loadedModelIds=new Set();
+function updateModelStatus(){
+  const el=$('modelChip'); if(!el) return;
+  el.innerHTML = loadedModelIds.size ? `<b>Model 3D</b>&nbsp;${loadedModelIds.size} GLB aktif` : '<b>Model 3D</b>&nbsp;prosedural';
+}
+function tryLoadModel(av){
+  try{
+    if(!gltfLoader) gltfLoader=new GLTFLoader();
+    const seq=av.buildSeq;
+    gltfLoader.load(MODEL_BASE+'sukioffice-'+av.agent.id+'.glb', gltf=>{
+      if(seq!==buildSeq || !gltf.scene) return;
+      const model=gltf.scene;
+      const bb=new THREE.Box3().setFromObject(model); const size=new THREE.Vector3(); bb.getSize(size);
+      if(size.y>0) model.scale.setScalar(1.75/size.y);
+      const bb2=new THREE.Box3().setFromObject(model); const c=new THREE.Vector3(); bb2.getCenter(c);
+      model.position.set(-c.x,-bb2.min.y,-c.z);
+      model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.userData.agentId=av.agent.id; interactives.push(o); } });
+      av.group.add(model);
+      av.group.children.forEach(ch=>{ if(ch!==model && ch!==av.label) ch.visible=false; });
+      av.model=model;
+      if(gltf.animations && gltf.animations.length){
+        av.mixer=new THREE.AnimationMixer(model);
+        const clip=gltf.animations.find(a=>/idle/i.test(a.name))||gltf.animations[0];
+        av.mixer.clipAction(clip).play();
+      }
+      loadedModelIds.add(av.agent.id); updateModelStatus();
+    }, undefined, ()=>{ /* Berkas belum ada: tetap pakai avatar prosedural. */ });
+  }catch(e){ /* GLTFLoader tidak tersedia: tetap prosedural. */ }
+}
+function wrapLines(x,text,maxW,maxLines){
+  const words=String(text||'').split(/\s+/).filter(Boolean); const lines=[]; let cur='';
+  for(const wd of words){
+    const t=cur?cur+' '+wd:wd;
+    if(x.measureText(t).width>maxW && cur){ lines.push(cur); cur=wd; if(lines.length>=maxLines) return lines; }
+    else cur=t;
+  }
+  if(cur && lines.length<maxLines) lines.push(cur);
+  return lines;
+}
+let boardCanvas=null, boardCtx=null, boardTex=null;
+function announcementBoardTexture(){
+  if(boardTex) return boardTex;
+  boardCanvas=document.createElement('canvas'); boardCanvas.width=1024; boardCanvas.height=540;
+  boardCtx=boardCanvas.getContext('2d');
+  boardTex=new THREE.CanvasTexture(boardCanvas); boardTex.colorSpace=THREE.SRGBColorSpace; boardTex.anisotropy=4;
+  drawAnnouncementBoard();
+  return boardTex;
+}
+function drawAnnouncementBoard(){
+  if(!boardCtx) return;
+  const x=boardCtx, W=1024, H=540;
+  x.fillStyle='#fff8ec'; x.fillRect(0,0,W,H);
+  x.fillStyle='#c4502a'; x.fillRect(0,0,W,64);
+  x.fillStyle='#fff'; x.font='900 32px system-ui'; x.textAlign='left'; x.fillText('PAPAN PENGUMUMAN',36,43);
+  x.font='700 22px system-ui'; x.textAlign='right'; x.fillText(liveMode?'MCP KANTOR • LIVE':'MODE LOKAL',W-36,41); x.textAlign='left';
+  const anns=(liveMode && liveFeed && Array.isArray(liveFeed.announcements))?liveFeed.announcements:[];
+  const a=anns[0];
+  x.fillStyle='#2c241b';
+  if(a){
+    const raw=String(a.text||''); const cut=raw.indexOf('. ');
+    const head=cut>0?raw.slice(0,cut+1):raw.slice(0,90);
+    const body=cut>0?raw.slice(cut+2):'';
+    x.font='900 39px system-ui';
+    const hl=wrapLines(x,head,940,2); hl.forEach((ln,i)=>x.fillText(ln,44,138+i*50));
+    x.font='400 29px system-ui'; x.fillStyle='#57493a';
+    const bl=wrapLines(x,body,940,5); bl.forEach((ln,i)=>x.fillText(ln,44,138+hl.length*50+16+i*40));
+    x.font='600 25px system-ui'; x.fillStyle='#8a7a63';
+    x.fillText('— '+feedName(a.fromAgentId)+' • '+feedTimeLabel(a.createdAt),44,502);
+  } else {
+    x.font='900 39px system-ui'; x.fillText('Selamat datang di SukiOffice',44,150);
+    x.font='400 29px system-ui'; x.fillStyle='#57493a';
+    wrapLines(x,'Papan ini menampilkan pengumuman terbaru dari MCP Kantor begitu kantor tersambung (mode LIVE). Gunakan panel Activity untuk log lengkap, dan tombol Tur kantor untuk berkeliling.',940,5).forEach((ln,i)=>x.fillText(ln,44,215+i*40));
+  }
+  if(boardTex) boardTex.needsUpdate=true;
+}
+function renderTicker(){
+  const el=$('tickerTrack'); if(!el) return;
+  let items=[];
+  if(liveMode && liveFeed){
+    (liveFeed.announcements||[]).slice(0,2).forEach(a=>items.push('📣 '+String(a.text||'').slice(0,110)));
+    const acts=[...(liveFeed.activity||[])].sort((p,q)=>String(q.createdAt||'').localeCompare(String(p.createdAt||''))).slice(0,6);
+    acts.forEach(ev=>items.push(feedName(ev.agentId)+': '+(ev.summary||'')));
+  } else {
+    items=store.activity.slice(0,6).map(ev=>ev.text);
+  }
+  if(!items.length) items=['Selamat datang di SukiOffice — Kantor Pusat Tim Agen Muse Suki Apps'];
+  const text=items.join('  •  ')+'  •  ';
+  el.innerHTML=`<span>${esc(text)}</span><span>${esc(text)}</span>`;
+  el.style.animationDuration=Math.max(18,Math.round(text.length/6))+'s';
+}
+let tour={on:false,idx:0,until:0,ang:0};
+function startTour(){
+  if(!threeReady){ toast('Mode 3D belum siap untuk tur.'); return; }
+  if(viewMode!=='3d') setView('3d');
+  tour.on=true; tour.idx=0;
+  $('btnTour').textContent='⏹ Hentikan tur';
+  visitTourRoom();
+  toast('Tur kantor dimulai — klik panggung atau tombol untuk berhenti.');
+}
+function visitTourRoom(){
+  const r=ROOMS[tour.idx%ROOMS.length];
+  if(currentRoom!==r.id) goToRoom(r.id,'tur');
+  tour.until=performance.now()+8000;
+  tour.ang=Math.random()*Math.PI*2;
+}
+function stopTour(){
+  if(!tour.on) return;
+  tour.on=false;
+  const b=$('btnTour'); if(b) b.textContent='▶ Tur kantor';
+}
+function snapshot(){
+  if(!threeReady || !renderer){ toast('Mode 3D belum siap.'); return; }
+  renderer.render(scene,camera);
+  renderer.domElement.toBlob(b=>{
+    if(!b){ toast('Foto gagal dibuat.'); return; }
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download='sukioffice-'+currentRoom+'-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.png';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    toast('Foto kantor tersimpan.');
   });
 }
 function init3D(){
@@ -768,7 +930,7 @@ function init3D(){
   window.__sukiSetSceneTheme(store.theme);
   buildRoom3D(currentRoom); resetCamera();
   const ray=new THREE.Raycaster(), ptr=new THREE.Vector2(); let downX=0,downY=0;
-  renderer.domElement.addEventListener('pointerdown',e=>{downX=e.clientX;downY=e.clientY;});
+  renderer.domElement.addEventListener('pointerdown',e=>{downX=e.clientX;downY=e.clientY; if(tour.on) stopTour();});
   renderer.domElement.addEventListener('pointerup',e=>{
     if(Math.hypot(e.clientX-downX,e.clientY-downY)>6) return;
     const r=renderer.domElement.getBoundingClientRect(); ptr.x=((e.clientX-r.left)/r.width)*2-1; ptr.y=-((e.clientY-r.top)/r.height)*2+1; ray.setFromCamera(ptr,camera);
@@ -784,6 +946,13 @@ function init3D(){
     if(keysDown.size && controls){ const move=new THREE.Vector3(); const f=new THREE.Vector3(); camera.getWorldDirection(f); f.y=0; f.normalize(); const right=new THREE.Vector3().crossVectors(f,new THREE.Vector3(0,1,0)).negate();
       if(keysDown.has('w')) move.add(f); if(keysDown.has('s')) move.sub(f); if(keysDown.has('a')) move.add(right); if(keysDown.has('d')) move.sub(right);
       if(move.length()){ move.normalize().multiplyScalar(dt*4); camera.position.add(move); controls.target.add(move); const room=roomById[currentRoom]; controls.target.x=THREE.MathUtils.clamp(controls.target.x,-room.size[0]/2,room.size[0]/2); controls.target.z=THREE.MathUtils.clamp(controls.target.z,-room.size[1]/2,room.size[1]/2); } }
+    if(tour.on){
+      const room=roomById[currentRoom]; const rad=Math.min(room.size[0],room.size[1])*.52;
+      tour.ang+=dt*.12;
+      camera.position.lerp(new THREE.Vector3(Math.cos(tour.ang)*rad,3.4,Math.sin(tour.ang)*rad*.8+.5),.045);
+      controls.target.lerp(new THREE.Vector3(0,1.1,0),.06);
+      if(performance.now()>tour.until){ tour.idx++; if(tour.idx>=ROOMS.length){ stopTour(); toast('Tur kantor selesai.'); } else visitTourRoom(); }
+    }
     animateAvatars(t,dt); controls.update(); renderer.render(scene,camera); updateBubble();
     frames++; const now=performance.now(); if(now-fpsTime>=1000){ $('hudFps').textContent=frames; $('hudCalls').textContent=renderer.info.render.calls; frames=0; fpsTime=now; }
   });
@@ -798,6 +967,7 @@ setView(viewMode);
 if(!threeReady) setView('2d');
 renderModeUI();
 fetchFeed();
+renderTicker();
 setInterval(fetchFeed, 60000);
 </script>
 </body>
